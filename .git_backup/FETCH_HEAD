@@ -1,0 +1,22 @@
+df75a63af00a883e7a48121f97c1146040b49a30		branch 'main' of github.com:midnightntwrk/example-counter
+c4f85f603273c373bc83a62cb070f38b12145972	not-for-merge	branch 'JosephDenman/compact-0.24.0' of github.com:midnightntwrk/example-counter
+23cd1a8098402d4e12de08ca9e8dcbb1e04c9e42	not-for-merge	branch 'claude/versions-update' of github.com:midnightntwrk/example-counter
+a03228ad880042660f56ac8a03718d4a6b3f9886	not-for-merge	branch 'cleanup' of github.com:midnightntwrk/example-counter
+a7a5fefd0c9115927013ff06c3c906d54c8f1618	not-for-merge	branch 'dependabot/github_actions/checkmarx/ast-github-action-2.3.19' of github.com:midnightntwrk/example-counter
+cec2ff3af6ba3e59c4f2562ff19565b310d2a4a1	not-for-merge	branch 'dependabot/npm_and_yarn/eslint-9.29.0' of github.com:midnightntwrk/example-counter
+40d2921e34ba7d740889cb723236c3b56e2301a7	not-for-merge	branch 'dependabot/npm_and_yarn/eslint-plugin-prettier-5.5.0' of github.com:midnightntwrk/example-counter
+abb7be8ad34bb1a29ca1f061af8d421c48cdc4cb	not-for-merge	branch 'dependabot/npm_and_yarn/eslint/js-9.29.0' of github.com:midnightntwrk/example-counter
+0c2e92f624dd73154e90b50ab6b3c9dc3f9a072e	not-for-merge	branch 'dependabot/npm_and_yarn/midnight-ntwrk/midnight-js-contracts-2.0.2' of github.com:midnightntwrk/example-counter
+21facc17fec7334f64fb8b7d7e3a0451caa2f8f5	not-for-merge	branch 'dependabot/npm_and_yarn/midnight-ntwrk/midnight-js-http-client-proof-provider-2.0.2' of github.com:midnightntwrk/example-counter
+9d084c9aad6de0b6f10c9f093f56b67bd14194b5	not-for-merge	branch 'dependabot/npm_and_yarn/midnight-ntwrk/midnight-js-indexer-public-data-provider-2.0.2' of github.com:midnightntwrk/example-counter
+c2e1a791adf2bbee457f3c9923b1454be20d384b	not-for-merge	branch 'dependabot/npm_and_yarn/midnight-ntwrk/midnight-js-level-private-state-provider-2.0.2' of github.com:midnightntwrk/example-counter
+2441b770cc6dd15ca325d7436e7c6359e3a14f1d	not-for-merge	branch 'dependabot/npm_and_yarn/midnight-ntwrk/midnight-js-node-zk-config-provider-2.0.2' of github.com:midnightntwrk/example-counter
+6e4a8b8ccdd9f44a28e6da4b930cb70f9f968bae	not-for-merge	branch 'dependabot/npm_and_yarn/midnight-ntwrk/midnight-js-types-2.0.2' of github.com:midnightntwrk/example-counter
+acd8fe8e7491ca7d6e101cee527d8b564adc7244	not-for-merge	branch 'dependabot/npm_and_yarn/testcontainers-11.0.3' of github.com:midnightntwrk/example-counter
+5fa4d4ae50f0bccb00c1c3e4ac4479c4f4acfb4c	not-for-merge	branch 'dependabot/npm_and_yarn/types/node-24.0.3' of github.com:midnightntwrk/example-counter
+726ae169b81b061b8f9b65a6536a451d9c496355	not-for-merge	branch 'dependabot/npm_and_yarn/typescript-eslint/eslint-plugin-8.34.1' of github.com:midnightntwrk/example-counter
+db612950eb5431a472de889ed0f204b66b3ee1eb	not-for-merge	branch 'dependabot/npm_and_yarn/typescript-eslint/parser-8.34.1' of github.com:midnightntwrk/example-counter
+c682fb321eb32ebeab67656137452871884d9f38	not-for-merge	branch 'dependabot/npm_and_yarn/vitest-3.2.4' of github.com:midnightntwrk/example-counter
+517f88cfefef7cdc4cde86e2c9fc3bf94ffbd120	not-for-merge	branch 'hb-fixing-standalone' of github.com:midnightntwrk/example-counter
+af2025e618d8c7c73506b2dcaec3ffcce63823a2	not-for-merge	branch 'hb-test-map' of github.com:midnightntwrk/example-counter
+007b477bd9870592e664192888b7903237ea14ca	not-for-merge	branch 'kmillikin/fixes' of github.com:midnightntwrk/example-counter
