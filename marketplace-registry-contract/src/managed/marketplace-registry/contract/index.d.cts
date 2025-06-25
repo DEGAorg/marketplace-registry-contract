@@ -4,8 +4,8 @@ export type Witnesses<T> = {
 }
 
 export type ImpureCircuits<T> = {
-  register(context: __compactRuntime.CircuitContext<T>, email_0: string): __compactRuntime.CircuitResults<T, []>;
-  verify_email(context: __compactRuntime.CircuitContext<T>, pk_0: Uint8Array): __compactRuntime.CircuitResults<T, string>;
+  register(context: __compactRuntime.CircuitContext<T>, text_0: string): __compactRuntime.CircuitResults<T, []>;
+  verify_text(context: __compactRuntime.CircuitContext<T>, pk_0: Uint8Array): __compactRuntime.CircuitResults<T, string>;
   read_own_public_key(context: __compactRuntime.CircuitContext<T>): __compactRuntime.CircuitResults<T, Uint8Array>;
 }
 
@@ -13,8 +13,8 @@ export type PureCircuits = {
 }
 
 export type Circuits<T> = {
-  register(context: __compactRuntime.CircuitContext<T>, email_0: string): __compactRuntime.CircuitResults<T, []>;
-  verify_email(context: __compactRuntime.CircuitContext<T>, pk_0: Uint8Array): __compactRuntime.CircuitResults<T, string>;
+  register(context: __compactRuntime.CircuitContext<T>, text_0: string): __compactRuntime.CircuitResults<T, []>;
+  verify_text(context: __compactRuntime.CircuitContext<T>, pk_0: Uint8Array): __compactRuntime.CircuitResults<T, string>;
   read_own_public_key(context: __compactRuntime.CircuitContext<T>): __compactRuntime.CircuitResults<T, Uint8Array>;
 }
 

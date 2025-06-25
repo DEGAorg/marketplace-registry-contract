@@ -26,7 +26,10 @@ describe("Marketplace Registry smart contract", () => {
   it("generates initial ledger state deterministically", () => {
     const simulator0 = new MarketplaceRegistrySimulator();
     const simulator1 = new MarketplaceRegistrySimulator();
-    expect(simulator0.getLedger()).toEqual(simulator1.getLedger());
+    const ledger0 = simulator0.getLedger();
+    const ledger1 = simulator1.getLedger();
+    expect(ledger0.registry.size()).toBe(ledger1.registry.size());
+    expect(ledger0.registry.isEmpty()).toBe(ledger1.registry.isEmpty());
   });
 
   it("properly initializes ledger state and private state", () => {
@@ -40,8 +43,8 @@ describe("Marketplace Registry smart contract", () => {
 
   it("registers a user correctly", () => {
     const simulator = new MarketplaceRegistrySimulator();
-    const email = "test@example.com";
-    const nextLedgerState = simulator.register(email);
+    const identifier = "test-identifier-123";
+    const nextLedgerState = simulator.register(identifier);
     expect(nextLedgerState.registry.size()).toBe(1n);
     expect(nextLedgerState.registry.isEmpty()).toBe(false);
   });

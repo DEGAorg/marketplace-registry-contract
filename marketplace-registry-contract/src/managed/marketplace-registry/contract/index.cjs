@@ -69,7 +69,7 @@ class Contract {
         if (args_1.length !== 2)
           throw new __compactRuntime.CompactError(`register: expected 2 arguments (as invoked from Typescript), received ${args_1.length}`);
         const contextOrig_0 = args_1[0];
-        const email_0 = args_1[1];
+        const text_0 = args_1[1];
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.originalState != undefined && contextOrig_0.transactionContext != undefined))
           __compactRuntime.type_error('register',
                                       'argument 1 (as invoked from Typescript)',
@@ -79,30 +79,30 @@ class Contract {
         const context = { ...contextOrig_0 };
         const partialProofData = {
           input: {
-            value: _descriptor_1.toValue(email_0),
+            value: _descriptor_1.toValue(text_0),
             alignment: _descriptor_1.alignment()
           },
           output: undefined,
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = this.#_register_0(context, partialProofData, email_0);
+        const result_0 = this.#_register_0(context, partialProofData, text_0);
         partialProofData.output = { value: [], alignment: [] };
         return { result: result_0, context: context, proofData: partialProofData };
       },
-      verify_email: (...args_1) => {
+      verify_text: (...args_1) => {
         if (args_1.length !== 2)
-          throw new __compactRuntime.CompactError(`verify_email: expected 2 arguments (as invoked from Typescript), received ${args_1.length}`);
+          throw new __compactRuntime.CompactError(`verify_text: expected 2 arguments (as invoked from Typescript), received ${args_1.length}`);
         const contextOrig_0 = args_1[0];
         const pk_0 = args_1[1];
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.originalState != undefined && contextOrig_0.transactionContext != undefined))
-          __compactRuntime.type_error('verify_email',
+          __compactRuntime.type_error('verify_text',
                                       'argument 1 (as invoked from Typescript)',
                                       'src/marketplace-registry.compact line 39, char 1',
                                       'CircuitContext',
                                       contextOrig_0)
         if (!(pk_0.buffer instanceof ArrayBuffer && pk_0.BYTES_PER_ELEMENT === 1 && pk_0.length === 32))
-          __compactRuntime.type_error('verify_email',
+          __compactRuntime.type_error('verify_text',
                                       'argument 1 (argument 2 as invoked from Typescript)',
                                       'src/marketplace-registry.compact line 39, char 1',
                                       'Bytes<32>',
@@ -117,7 +117,7 @@ class Contract {
           publicTranscript: [],
           privateTranscriptOutputs: []
         };
-        const result_0 = this.#_verify_email_0(context, partialProofData, pk_0);
+        const result_0 = this.#_verify_text_0(context, partialProofData, pk_0);
         partialProofData.output = { value: _descriptor_1.toValue(result_0), alignment: _descriptor_1.alignment() };
         return { result: result_0, context: context, proofData: partialProofData };
       },
@@ -145,7 +145,7 @@ class Contract {
     };
     this.impureCircuits = {
       register: this.circuits.register,
-      verify_email: this.circuits.verify_email,
+      verify_text: this.circuits.verify_text,
       read_own_public_key: this.circuits.read_own_public_key
     };
   }
@@ -167,7 +167,7 @@ class Contract {
     stateValue_0 = stateValue_0.arrayPush(__compactRuntime.StateValue.newNull());
     state_0.data = stateValue_0;
     state_0.setOperation('register', new __compactRuntime.ContractOperation());
-    state_0.setOperation('verify_email', new __compactRuntime.ContractOperation());
+    state_0.setOperation('verify_text', new __compactRuntime.ContractOperation());
     state_0.setOperation('read_own_public_key', new __compactRuntime.ContractOperation());
     const context = {
       originalState: state_0,
@@ -207,7 +207,7 @@ class Contract {
     });
     return result_0;
   }
-  #_register_0(context, partialProofData, email_0) {
+  #_register_0(context, partialProofData, text_0) {
     const pkBytes_0 = this.#_own_public_key_0(context, partialProofData).bytes;
     const pk_0 = pkBytes_0;
     __compactRuntime.assert(!_descriptor_2.fromValue(Contract._query(context,
@@ -227,7 +227,7 @@ class Contract {
                                                                       { popeq: { cached: true,
                                                                                  result: undefined } }]).value),
                             'User already registered');
-    const disclosedEmail_0 = email_0;
+    const disclosedText_0 = text_0;
     Contract._query(context,
                     partialProofData,
                     [
@@ -241,13 +241,13 @@ class Contract {
                                value: __compactRuntime.StateValue.newCell({ value: _descriptor_0.toValue(pk_0),
                                                                             alignment: _descriptor_0.alignment() }).encode() } },
                      { push: { storage: true,
-                               value: __compactRuntime.StateValue.newCell({ value: _descriptor_1.toValue(disclosedEmail_0),
+                               value: __compactRuntime.StateValue.newCell({ value: _descriptor_1.toValue(disclosedText_0),
                                                                             alignment: _descriptor_1.alignment() }).encode() } },
                      { ins: { cached: false, n: 1 } },
                      { ins: { cached: true, n: 1 } }]);
     return [];
   }
-  #_verify_email_0(context, partialProofData, pk_0) {
+  #_verify_text_0(context, partialProofData, pk_0) {
     const disclosedPk_0 = pk_0;
     __compactRuntime.assert(_descriptor_2.fromValue(Contract._query(context,
                                                                     partialProofData,

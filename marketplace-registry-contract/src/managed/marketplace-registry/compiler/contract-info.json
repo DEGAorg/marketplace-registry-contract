@@ -5,7 +5,7 @@
       "pure": false,
       "arguments": [
         {
-          "name": "email",
+          "name": "text",
           "type": {
             "type-name": "Opaque",
             "tsType": "string"
@@ -19,7 +19,7 @@
       }
     },
     {
-      "name": "verify_email",
+      "name": "verify_text",
       "pure": false,
       "arguments": [
         {

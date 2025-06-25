@@ -100,9 +100,9 @@ export const deploy = async (
   return marketplaceRegistryContract;
 };
 
-export const register = async (marketplaceRegistryContract: DeployedMarketplaceRegistryContract, email: string): Promise<FinalizedTxData> => {
-  logger.info('Registering email...');
-  const finalizedTxData = await marketplaceRegistryContract.callTx.register(email);
+export const register = async (marketplaceRegistryContract: DeployedMarketplaceRegistryContract, text: string): Promise<FinalizedTxData> => {
+  logger.info('Registering text identifier...');
+  const finalizedTxData = await marketplaceRegistryContract.callTx.register(text);
   logger.info(`Transaction ${finalizedTxData.public.txId} added in block ${finalizedTxData.public.blockHeight}`);
   return finalizedTxData.public;
 };
@@ -131,13 +131,13 @@ export const isPublicKeyRegistered = async (
   }
 };
 
-export const verifyEmailPure = async (
+export const verifyTextPure = async (
   providers: MarketplaceRegistryProviders,
   contractAddress: ContractAddress,
   pk: Uint8Array,
 ): Promise<string | null> => {
   assertIsContractAddress(contractAddress);
-  logger.info('Verifying email (pure read)...');
+  logger.info('Verifying text identifier (pure read)...');
 
   const state = await getMarketplaceRegistryLedgerState(providers, contractAddress);
   if (state === null) {
@@ -152,19 +152,19 @@ export const verifyEmailPure = async (
       return null;
     }
 
-    // Return the email associated with the public key
-    const email = state.registry.lookup(pk);
-    logger.info(`Email found: ${email}`);
-    return email;
+    // Return the text identifier associated with the public key
+    const text = state.registry.lookup(pk);
+    logger.info(`Text identifier found: ${text}`);
+    return text;
   } catch (error) {
-    logger.error(`Error verifying email: ${error}`);
+    logger.error(`Error verifying text identifier: ${error}`);
     return null;
   }
 };
 
-export const verifyEmail = async (marketplaceRegistryContract: DeployedMarketplaceRegistryContract, pk: Uint8Array): Promise<string> => {
-  logger.info('Verifying email...');
-  const finalizedTxData = await marketplaceRegistryContract.callTx.verify_email(pk);
+export const verifyText = async (marketplaceRegistryContract: DeployedMarketplaceRegistryContract, pk: Uint8Array): Promise<string> => {
+  logger.info('Verifying text identifier...');
+  const finalizedTxData = await marketplaceRegistryContract.callTx.verify_text(pk);
   logger.info(`Transaction ${finalizedTxData.public.txId} added in block ${finalizedTxData.public.blockHeight}`);
   return finalizedTxData.private.result;
 };
@@ -401,7 +401,7 @@ export const configureProviders = async (wallet: Wallet & Resource, config: Conf
       privateStateStoreName: contractConfig.privateStateStoreName,
     }),
     publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
-    zkConfigProvider: new NodeZkConfigProvider<'register' | 'verify_email' | 'read_own_public_key'>(
+    zkConfigProvider: new NodeZkConfigProvider<'register' | 'verify_text' | 'read_own_public_key'>(
       contractConfig.zkConfigPath,
     ),
     proofProvider: httpClientProofProvider(config.proofServer),

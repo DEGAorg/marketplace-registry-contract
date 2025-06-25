@@ -47,15 +47,15 @@ describe('Marketplace Registry API', () => {
     await testEnvironment.shutdown();
   });
 
-  it('registers an email', async () => {
+  it('registers a text identifier', async () => {
     const contract = await api.deploy(providers, {});
     const result = await api.register(contract, 'test@example.com');
     expect(result.txId).toBe('0xabc');
   });
 
-  it('verifies an email (pure read)', async () => {
-    const email = await api.verifyEmailPure(providers, '0x123', new Uint8Array(32));
-    expect(email === null || typeof email === 'string').toBe(true);
+  it('verifies a text identifier (pure read)', async () => {
+    const text = await api.verifyTextPure(providers, '0x123', new Uint8Array(32));
+    expect(text === null || typeof text === 'string').toBe(true);
   });
 
   it('reads own public key', async () => {

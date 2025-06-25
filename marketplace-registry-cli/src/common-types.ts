@@ -30,7 +30,7 @@ export type DeployedMarketplaceRegistryContract = DeployedContract<MarketplaceRe
 // New types for the registry functionality
 export interface RegistryEntry {
   publicKey: Uint8Array;
-  email: string;
+  text: string;
 }
 
 export interface RegistryState {
