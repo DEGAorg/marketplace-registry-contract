@@ -130,7 +130,3 @@ npm run testnet-remote-ps
 ```
 
 Then follow the instructions from the CLI.
-
-If you did not previously create and fund a Midnight Lace wallet, you will need to do so. Funds for testing can be requested from [the official faucet](https://faucet.testnet-02.midnight.network/).
-
-You can find more information in part 2 of the [Midnight developer tutorial](https://docs.midnight.network/develop/tutorial/building).
