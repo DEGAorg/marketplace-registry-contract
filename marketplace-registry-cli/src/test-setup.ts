@@ -25,6 +25,7 @@ import {
   configureProviders, 
   deploy, 
   register,
+  joinContract,
   randomBytes,
   setLogger,
   waitForSync
@@ -36,6 +37,7 @@ import * as Rx from 'rxjs';
 import { type TransactionId, nativeToken } from '@midnight-ntwrk/ledger';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { C } from 'vitest/dist/chunks/reporters.d.C1ogPriE.js';
 
 // Load environment variables from .env file
 const __filename = fileURLToPath(import.meta.url);
@@ -49,6 +51,13 @@ const DESTINATION_ADDRESS = process.env.DESTINATION_ADDRESS;
 const FUNDING_AMOUNT = process.env.FUNDING_AMOUNT;
 const PAYMENT_AMOUNT = process.env.PAYMENT_AMOUNT;
 const REGISTRATION_EMAIL = process.env.REGISTRATION_EMAIL;
+
+// Gas fee estimates (in native tokens)
+const ESTIMATED_GAS_FEE = 1n; // Estimated gas fee for contract deployment
+const ESTIMATED_TRANSACTION_FEE = 1n; // Estimated fee for regular transactions
+
+// Transaction timeout (1 minutes)
+const TRANSACTION_TIMEOUT_MS = 10_000;
 
 // Validate required environment variables
 const validateEnvironmentVariables = () => {
@@ -83,6 +92,8 @@ interface TestSetupResult {
   fundingTxId2: string;
   paymentTxId1: string;
   paymentTxId2: string;
+  wallet1FundingAmount: bigint;
+  wallet2FundingAmount: bigint;
 }
 
 /**
@@ -121,6 +132,14 @@ const restoreWallet = async (
   logger.info(`Wallet restored and synced. Address: ${state.address}, Balance: ${state.balances[nativeToken()]}`);
   
   return wallet;
+};
+
+/**
+ * Simple timeout function to wait between transactions
+ */
+const wait = (ms: number, reason: string): Promise<void> => {
+  console.info(`Waiting ${ms}ms for ${reason}`);
+  return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 /**
@@ -188,63 +207,149 @@ export const runTestSetup = async (config?: Config): Promise<TestSetupResult> =>
     const fundWalletState = await Rx.firstValueFrom(fundWallet.state());
     logger.info(`Fund wallet created with address: ${fundWalletState.address}`);
     
-    // Step 2: Create wallet1 (for contract deployment and registration)
-    logger.info('==XXSTEPXX== 2: Creating wallet1...');
+        // Step 2: Deploy marketplace registry contract using fund wallet
+    logger.info('==XXSTEPXX== 2: Deploying marketplace registry contract using fund wallet...');
+    
+    // Verify fund wallet has sufficient funds before deployment
+    const fundWalletStateBeforeDeployment = await Rx.firstValueFrom(fundWallet.state());
+    const fundWalletBalance = fundWalletStateBeforeDeployment.balances[nativeToken()] || 0n;
+    logger.info(`Fund wallet balance before deployment: ${fundWalletBalance}`);
+    
+    if (fundWalletBalance < ESTIMATED_GAS_FEE) {
+      throw new Error(`Insufficient funds in fund wallet for contract deployment. Balance: ${fundWalletBalance}, Required: ${ESTIMATED_GAS_FEE}`);
+    }
+    
+    const providers = await configureProviders(fundWallet, testConfig);
+    await wait(TRANSACTION_TIMEOUT_MS, 'prepare to deploy contract');
+    const marketplaceRegistryContract = await deploy(providers, {});
+    const contractAddress = marketplaceRegistryContract.deployTxData.public.contractAddress;
+    logger.info(`Contract deployed at address: ${contractAddress}`);
+    
+    // Step 3: Register with funding wallet in the contract
+    logger.info('==XXSTEPXX== 3: Registering with funding wallet in the contract...');
+    await register(marketplaceRegistryContract, env.REGISTRATION_EMAIL);
+    logger.info(`Funding wallet registered with email: ${env.REGISTRATION_EMAIL}`);
+    
+    // Wait for registration transaction to be processed
+    logger.info(`Waiting ${TRANSACTION_TIMEOUT_MS / 1000} seconds for funding wallet registration transaction to be processed...`);
+    await wait(TRANSACTION_TIMEOUT_MS, 'funding wallet registration transaction');
+    logger.info('Funding wallet registration transaction should be processed by now');
+    
+    // Step 4: Create wallet1 (for registration and payments)
+    logger.info('==XXSTEPXX== 4: Creating wallet1...');
     const wallet1Result = await createNewWallet(testConfig, logger);
     logger.info(`Wallet1 created with address: ${wallet1Result.address}`);
     
-    // Step 3: Create wallet2 (for unregistered payments)
-    logger.info('==XXSTEPXX== 3: Creating wallet2...');
+    // Step 5: Create wallet2 (for unregistered payments)
+    logger.info('==XXSTEPXX== 5: Creating wallet2...');
     const wallet2Result = await createNewWallet(testConfig, logger);
     logger.info(`Wallet2 created with address: ${wallet2Result.address}`);
     
-    // Step 4: Send funds from fund wallet to wallet1 and wallet2
-    logger.info('==XXSTEPXX== 4: Distributing funds from fund wallet...');
+    // Step 6: Send funds from fund wallet to wallet1 and wallet2
+    logger.info('==XXSTEPXX== 6: Distributing funds from fund wallet...');
     let fundingTxId1: string;
     let fundingTxId2: string;
     
     try {
       // Restore fund wallet to ensure it's fully synced for transactions
-      const restoredFundWallet = await restoreWallet(testConfig, env.FUND_WALLET_SEED, logger);
-      fundingTxId1 = await sendFunds(restoredFundWallet, wallet1Result.address, env.FUNDING_AMOUNT, logger);
-      fundingTxId2 = await sendFunds(restoredFundWallet, wallet2Result.address, env.FUNDING_AMOUNT, logger);
+      const restoredFundWalletForFunding = await restoreWallet(testConfig, env.FUND_WALLET_SEED, logger);
+      
+      // Calculate funding amounts with gas fees
+      // Wallet1 needs funds for: contract deployment + registration + payment + gas fees
+      const wallet1FundingAmount = 10n + ESTIMATED_GAS_FEE + ESTIMATED_TRANSACTION_FEE * 2n;
+      // Wallet2 needs funds for: payment + gas fees
+      const wallet2FundingAmount = env.FUNDING_AMOUNT + ESTIMATED_TRANSACTION_FEE;
+      
+      logger.info(`Sending ${wallet1FundingAmount} to wallet1 (includes gas fees for registration and payment)`);
+      logger.info(`Sending ${wallet2FundingAmount} to wallet2 (includes gas fees for payment)`);
+      
+      // Send funds to wallet1
+      fundingTxId1 = await sendFunds(restoredFundWalletForFunding, wallet1Result.address, wallet1FundingAmount, logger);
+      
+      await wait(TRANSACTION_TIMEOUT_MS, 'funding wallet1');
+      
+      // Send funds to wallet2
+      fundingTxId2 = await sendFunds(restoredFundWalletForFunding, wallet2Result.address, wallet2FundingAmount, logger);
+      
+      // Wait for transactions to be processed
+      logger.info(`Waiting ${TRANSACTION_TIMEOUT_MS / 1000} seconds for funding transactions to be processed...`);
+      await wait(TRANSACTION_TIMEOUT_MS, 'funding wallet2');
+      logger.info('Funding transactions should be processed by now');
+      
     } catch (error) {
       // log error and exit process since we can't continue without funds
       logger.error('Failed to send funds to wallets for testing, exiting...', error);
       process.exit(1);
     }
     
-    // Step 5: Deploy marketplace registry contract using wallet1
-    logger.info('==XXSTEPXX== 5: Deploying marketplace registry contract...');
-    const restoredWallet1 = await restoreWallet(testConfig, wallet1Result.seed, logger);
-    const providers = await configureProviders(restoredWallet1, testConfig);
-    const marketplaceRegistryContract = await deploy(providers, {});
-    const contractAddress = marketplaceRegistryContract.deployTxData.public.contractAddress;
-    logger.info(`Contract deployed at address: ${contractAddress}`);
+    // Step 7: Join contract with wallet1
+    logger.info('==XXSTEPXX== 7: Joining contract with wallet1...');
+    const restoredWallet1 = await buildWalletAndWaitForFunds(testConfig, wallet1Result.seed);
+    const wallet1Providers = await configureProviders(restoredWallet1, testConfig);
+    const wallet1MarketplaceRegistryContract = await joinContract(wallet1Providers, contractAddress);
+    logger.info(`Wallet1 joined contract at address: ${contractAddress}`);
     
-    // Step 6: Register wallet1 in the contract
-    logger.info('==XXSTEPXX== 6: Registering wallet1 in the contract...');
-    await register(marketplaceRegistryContract, env.REGISTRATION_EMAIL);
+    // Step 8: Register wallet1 in the contract
+    logger.info('==XXSTEPXX== 8: Registering wallet1 in the contract...');
+    await register(wallet1MarketplaceRegistryContract, env.REGISTRATION_EMAIL);
     logger.info(`Wallet1 registered with email: ${env.REGISTRATION_EMAIL}`);
     
-    // Step 7: Send valid payment from wallet1 (registered) to destination
-    logger.info('==XXSTEPXX== 7: Sending valid payment from wallet1 (registered) to destination...');
+    // Wait for registration transaction to be processed
+    logger.info(`Waiting ${TRANSACTION_TIMEOUT_MS / 1000} seconds for wallet1 registration transaction to be processed...`);
+    await wait(TRANSACTION_TIMEOUT_MS, 'wallet1 registration transaction');
+    logger.info('Wallet1 registration transaction should be processed by now');
+    
+    // Step 9: Send valid payment from wallet1 (registered) to destination
+    logger.info('==XXSTEPXX== 9: Sending valid payment from wallet1 (registered) to destination...');
     let paymentTxId1: string;
     try {
-      const restoredWallet1ForPayment = await restoreWallet(testConfig, wallet1Result.seed, logger);
-      paymentTxId1 = await sendFunds(restoredWallet1ForPayment, env.DESTINATION_ADDRESS, env.PAYMENT_AMOUNT, logger);
+      // Verify wallet1 has sufficient funds for payment
+      const wallet1StateForPayment = await Rx.firstValueFrom(restoredWallet1.state());
+      const wallet1BalanceForPayment = wallet1StateForPayment.balances[nativeToken()] || 0n;
+      const requiredForPayment = env.PAYMENT_AMOUNT + ESTIMATED_TRANSACTION_FEE;
+      
+      logger.info(`Wallet1 balance before payment: ${wallet1BalanceForPayment}, Required: ${requiredForPayment}`);
+      
+      if (wallet1BalanceForPayment < requiredForPayment) {
+        logger.warn(`Insufficient funds in wallet1 for payment. Balance: ${wallet1BalanceForPayment}, Required: ${requiredForPayment}`);
+        paymentTxId1 = 'insufficient-funds';
+      } else {
+        paymentTxId1 = await sendFunds(restoredWallet1, env.DESTINATION_ADDRESS, env.PAYMENT_AMOUNT, logger);
+        // Wait for payment transaction to be processed
+        logger.info(`Waiting ${TRANSACTION_TIMEOUT_MS / 1000} seconds for wallet1 payment transaction to be processed...`);
+        await wait(TRANSACTION_TIMEOUT_MS, 'wallet1 payment transaction');
+        logger.info('Wallet1 payment transaction should be processed by now');
+      }
     } catch (error) {
       logger.warn('Automatic payment from wallet1 failed, manual payment required');
       paymentTxId1 = 'manual-payment-required';
     }
     
-    // Step 8: Send payment from wallet2 (unregistered) to destination
-    logger.info('==XXSTEPXX== 8: Sending payment from wallet2 (unregistered) to destination...');
+    // Step 10: Send payment from wallet2 (unregistered) to destination
+    logger.info('==XXSTEPXX== 10: Sending payment from wallet2 (unregistered) to destination...');
     let paymentTxId2: string;
     let restoredWallet2ForPayment: Wallet & Resource;
     try {
-      restoredWallet2ForPayment = await restoreWallet(testConfig, wallet2Result.seed, logger);
-      paymentTxId2 = await sendFunds(restoredWallet2ForPayment, env.DESTINATION_ADDRESS, env.PAYMENT_AMOUNT, logger);
+      restoredWallet2ForPayment = await buildWalletAndWaitForFunds(testConfig, wallet2Result.seed);
+      
+      // Verify wallet2 has sufficient funds for payment
+      const wallet2StateForPayment = await Rx.firstValueFrom(restoredWallet2ForPayment.state());
+      const wallet2BalanceForPayment = wallet2StateForPayment.balances[nativeToken()] || 0n;
+      const requiredForPayment = env.PAYMENT_AMOUNT + ESTIMATED_TRANSACTION_FEE;
+      
+      logger.info(`Wallet2 balance before payment: ${wallet2BalanceForPayment}, Required: ${requiredForPayment}`);
+      
+      if (wallet2BalanceForPayment < requiredForPayment) {
+        logger.warn(`Insufficient funds in wallet2 for payment. Balance: ${wallet2BalanceForPayment}, Required: ${requiredForPayment}`);
+        paymentTxId2 = 'insufficient-funds';
+      } else {
+        await wait(TRANSACTION_TIMEOUT_MS, 'prepare to send payment');
+        paymentTxId2 = await sendFunds(restoredWallet2ForPayment, env.DESTINATION_ADDRESS, env.PAYMENT_AMOUNT, logger);
+        // Wait for payment transaction to be processed
+        logger.info(`Waiting ${TRANSACTION_TIMEOUT_MS / 1000} seconds for wallet2 payment transaction to be processed...`);
+        await wait(TRANSACTION_TIMEOUT_MS, 'wallet2 payment transaction');
+        logger.info('Wallet2 payment transaction should be processed by now');
+      }
     } catch (error) {
       logger.warn('Automatic payment from wallet2 failed, manual payment required');
       paymentTxId2 = 'manual-payment-required';
@@ -275,6 +380,14 @@ export const runTestSetup = async (config?: Config): Promise<TestSetupResult> =>
     logger.info(`- Valid payment: wallet1 (registered) sent ${env.PAYMENT_AMOUNT} to destination`);
     logger.info(`- Invalid payment: wallet2 (unregistered) sent ${env.PAYMENT_AMOUNT} to destination`);
     logger.info('- Use the contract address and public keys for validation');
+    logger.info('');
+    logger.info('Funding Summary:');
+    logger.info(`- Contract deployed by fund wallet (gas fee: ${ESTIMATED_GAS_FEE})`);
+    logger.info(`- Wallet1 received: ${env.FUNDING_AMOUNT + ESTIMATED_TRANSACTION_FEE * 2n} (includes gas fees for registration and payment)`);
+    logger.info(`- Wallet2 received: ${env.FUNDING_AMOUNT + ESTIMATED_TRANSACTION_FEE} (includes gas fees for payment)`);
+    logger.info(`- Estimated gas fee for contract deployment: ${ESTIMATED_GAS_FEE}`);
+    logger.info(`- Estimated transaction fee: ${ESTIMATED_TRANSACTION_FEE}`);
+    logger.info(`- Transaction timeout: ${TRANSACTION_TIMEOUT_MS / 1000} seconds`);
     
     return {
       fundWalletSeed: env.FUND_WALLET_SEED,
@@ -291,7 +404,9 @@ export const runTestSetup = async (config?: Config): Promise<TestSetupResult> =>
       fundingTxId1,
       fundingTxId2,
       paymentTxId1,
-      paymentTxId2
+      paymentTxId2,
+      wallet1FundingAmount: env.FUNDING_AMOUNT + ESTIMATED_TRANSACTION_FEE * 2n,
+      wallet2FundingAmount: env.FUNDING_AMOUNT + ESTIMATED_TRANSACTION_FEE
     };
     
   } catch (error) {
@@ -316,7 +431,9 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         fundingTxId1: result.fundingTxId1,
         fundingTxId2: result.fundingTxId2,
         paymentTxId1: result.paymentTxId1,
-        paymentTxId2: result.paymentTxId2
+        paymentTxId2: result.paymentTxId2,
+        wallet1FundingAmount: result.wallet1FundingAmount.toString(),
+        wallet2FundingAmount: result.wallet2FundingAmount.toString()
       }, null, 2));
       process.exit(0);
     })
