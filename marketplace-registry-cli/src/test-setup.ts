@@ -52,9 +52,9 @@ const FUNDING_AMOUNT = process.env.FUNDING_AMOUNT;
 const PAYMENT_AMOUNT = process.env.PAYMENT_AMOUNT;
 const REGISTRATION_EMAIL = process.env.REGISTRATION_EMAIL;
 
-// Gas fee estimates (in native tokens)
-const ESTIMATED_GAS_FEE = 1n; // Estimated gas fee for contract deployment
-const ESTIMATED_TRANSACTION_FEE = 1n; // Estimated fee for regular transactions
+// Gas fee estimates (in native tokens with 6 decimal places)
+const ESTIMATED_GAS_FEE = 1_000_000n; // Estimated gas fee for contract deployment (1 token)
+const ESTIMATED_TRANSACTION_FEE = 1_000_000n; // Estimated fee for regular transactions (1 token)
 
 // Transaction timeout (1 minutes)
 const TRANSACTION_TIMEOUT_MS = 10_000;
@@ -256,7 +256,7 @@ export const runTestSetup = async (config?: Config): Promise<TestSetupResult> =>
       
       // Calculate funding amounts with gas fees
       // Wallet1 needs funds for: contract deployment + registration + payment + gas fees
-      const wallet1FundingAmount = 10n + ESTIMATED_GAS_FEE + ESTIMATED_TRANSACTION_FEE * 2n;
+      const wallet1FundingAmount = 10_000_000n + ESTIMATED_GAS_FEE + ESTIMATED_TRANSACTION_FEE * 2n; // 10 tokens + fees
       // Wallet2 needs funds for: payment + gas fees
       const wallet2FundingAmount = env.FUNDING_AMOUNT + ESTIMATED_TRANSACTION_FEE;
       
