@@ -36,6 +36,7 @@ import * as Rx from 'rxjs';
 import { type TransactionId, nativeToken } from '@midnight-ntwrk/ledger';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { writeFileSync } from 'fs';
 
 // Load environment variables from .env file
 const __filename = fileURLToPath(import.meta.url);
@@ -300,24 +301,109 @@ export const runTestSetup = async (config?: Config): Promise<TestSetupResult> =>
   }
 };
 
+/**
+ * Generates the JSON output file for test configuration
+ */
+const generateTestOutput = (result: TestSetupResult, env: any): void => {
+  const outputPath = join(__dirname, 'test-output.json');
+  
+  const testOutput = {
+    server: {
+      url: "http://localhost:3000",
+      timeout: 60000
+    },
+    wallets: {
+      wallet1: {
+        address: result.wallet1Address,
+        description: "Registered agent wallet"
+      },
+      wallet2: {
+        address: result.wallet2Address,
+        description: "Unregistered agent wallet"
+      }
+    },
+    marketplace: {
+      address: result.contractAddress,
+      description: "Marketplace contract address"
+    },
+    transactions: {
+      validPayment: {
+        identifier: result.paymentTxId1,
+        expectedAmount: env.PAYMENT_AMOUNT.toString(),
+        senderAddress: result.wallet1Address,
+        description: "Valid payment from registered agent (Wallet1) with correct amount"
+      },
+      wrongAmount: {
+        identifier: result.paymentTxId1,
+        expectedAmount: env.PAYMENT_AMOUNT.toString(),
+        actualAmount: (env.PAYMENT_AMOUNT / 2n).toString(),
+        senderAddress: result.wallet1Address,
+        description: "Payment from valid sender but wrong amount"
+      },
+      unknownSender: {
+        identifier: result.paymentTxId2,
+        expectedAmount: env.PAYMENT_AMOUNT.toString(),
+        senderAddress: result.wallet2Address,
+        description: "Payment from unregistered sender (Wallet2)"
+      },
+      noPayment: {
+        identifier: "non-existent-transaction-123",
+        expectedAmount: env.PAYMENT_AMOUNT.toString(),
+        description: "No payment received (transaction does not exist)"
+      },
+      validIdentityMatch: {
+        identifier: result.paymentTxId1,
+        expectedAmount: env.PAYMENT_AMOUNT.toString(),
+        senderAddress: result.wallet1Address,
+        registeredIdentity: result.wallet1Address,
+        description: "Valid identity match between on-chain sender and registered identity"
+      },
+      agentNotRegistered: {
+        identifier: result.paymentTxId2,
+        expectedAmount: env.PAYMENT_AMOUNT.toString(),
+        senderAddress: result.wallet2Address,
+        description: "Agent not registered in the contract (Wallet2)"
+      },
+      senderMismatch: {
+        identifier: result.paymentTxId1,
+        expectedAmount: env.PAYMENT_AMOUNT.toString(),
+        senderAddress: result.wallet1Address,
+        sessionIdentity: result.wallet2Address,
+        description: "Sender mismatch between on-chain transaction and off-chain session"
+      },
+      duplicateTransaction: {
+        identifier: result.paymentTxId1,
+        expectedAmount: env.PAYMENT_AMOUNT.toString(),
+        senderAddress: result.wallet1Address,
+        description: "Duplicate transaction detection test"
+      }
+    },
+    testAmounts: {
+      validAmount: env.PAYMENT_AMOUNT.toString(),
+      wrongAmount: (env.PAYMENT_AMOUNT / 2n).toString(),
+      zeroAmount: "0"
+    },
+    metadata: {
+      setupScriptVersion: "1.0.0",
+      lastUpdated: new Date().toISOString(),
+      description: "Configuration file for Wallet MCP integration tests. Generated from test setup script."
+    }
+  };
+  
+  writeFileSync(outputPath, JSON.stringify(testOutput, null, 2));
+  console.log(`Test output file generated: ${outputPath}`);
+};
+
 // Run the setup if this file is executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   runTestSetup()
     .then((result) => {
+      // Generate the test output JSON file
+      const env = validateEnvironmentVariables();
+      generateTestOutput(result, env);
+      
       console.log('Test setup completed successfully!');
-      console.log('Results:', JSON.stringify({
-        contractAddress: result.contractAddress,
-        wallet1PublicKey: result.wallet1PublicKey,
-        wallet2PublicKey: result.wallet2PublicKey,
-        destinationAddress: result.destinationAddress,
-        fundWalletAddress: result.fundWalletAddress,
-        wallet1Address: result.wallet1Address,
-        wallet2Address: result.wallet2Address,
-        fundingTxId1: result.fundingTxId1,
-        fundingTxId2: result.fundingTxId2,
-        paymentTxId1: result.paymentTxId1,
-        paymentTxId2: result.paymentTxId2
-      }, null, 2));
+      console.log(`Test output file generated: ${join(__dirname, 'test-output.json')}`);
       process.exit(0);
     })
     .catch((error) => {
