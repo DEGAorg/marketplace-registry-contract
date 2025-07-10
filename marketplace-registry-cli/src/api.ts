@@ -393,7 +393,7 @@ export const randomBytes = (length: number): Uint8Array => {
 export const buildWalletAndWaitForFunds = async (
   { indexer, indexerWS, node, proofServer }: Config,
   seed: string,
-  filename: string,
+  filename?: string,
 ): Promise<Wallet & Resource> => {
   const directoryPath = process.env.SYNC_CACHE;
   let wallet: Wallet & Resource;
