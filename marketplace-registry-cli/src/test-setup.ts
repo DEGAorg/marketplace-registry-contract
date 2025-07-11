@@ -32,12 +32,13 @@ import {
 } from './api.js';
 import { TestnetRemoteConfig, type Config } from './config.js';
 import { type MarketplaceRegistryProviders, type DeployedMarketplaceRegistryContract } from './common-types.js';
-import { toHex } from '@midnight-ntwrk/midnight-js-utils';
+import { parseCoinPublicKeyToHex, toHex } from '@midnight-ntwrk/midnight-js-utils';
 import * as Rx from 'rxjs';
 import { type TransactionId, nativeToken } from '@midnight-ntwrk/ledger';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { writeFileSync } from 'fs';
+import { getLedgerNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 
 // Load environment variables from .env file
 const __filename = fileURLToPath(import.meta.url);
@@ -360,8 +361,8 @@ export const runTestSetup = async (config?: Config): Promise<TestSetupResult> =>
     // Get public keys for reference
     const wallet1State = await Rx.firstValueFrom(restoredWallet1.state());
     const wallet2State = await Rx.firstValueFrom(restoredWallet2ForPayment.state());
-    const wallet1PublicKey = Buffer.from(wallet1State.coinPublicKey).toString('hex');
-    const wallet2PublicKey = Buffer.from(wallet2State.coinPublicKey).toString('hex');
+    const wallet1PublicKey = parseCoinPublicKeyToHex(wallet1State.coinPublicKeyLegacy, getLedgerNetworkId());
+    const wallet2PublicKey = parseCoinPublicKeyToHex(wallet2State.coinPublicKeyLegacy, getLedgerNetworkId());
     
     logger.info('Test setup completed successfully!');
     logger.info(`Contract Address: ${contractAddress}`);
