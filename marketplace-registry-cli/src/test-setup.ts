@@ -430,11 +430,13 @@ const generateTestOutput = (result: TestSetupResult, env: any): void => {
     wallets: {
       wallet1: {
         address: result.wallet1Address,
-        description: "Registered agent wallet"
+        description: "Registered agent wallet",
+        publicKey: result.wallet1PublicKey
       },
       wallet2: {
         address: result.wallet2Address,
-        description: "Unregistered agent wallet"
+        description: "Unregistered agent wallet",
+        publicKey: result.wallet2PublicKey
       }
     },
     marketplace: {
