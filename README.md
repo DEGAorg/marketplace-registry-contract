@@ -130,3 +130,72 @@ npm run testnet-remote-ps
 ```
 
 Then follow the instructions from the CLI.
+
+## On-Chain Integration Tests
+
+The [marketplace-registry-cli](marketplace-registry-cli) subdirectory also contains comprehensive on-chain integration tests that validate the marketplace registry contract functionality in a real blockchain environment.
+
+### Test Setup
+
+The integration tests are located in `marketplace-registry-cli/src/test-setup.ts` and provide automated setup for testing various scenarios:
+
+- **Contract Deployment**: Automatically deploys the marketplace registry contract to testnet
+- **Wallet Management**: Creates and funds multiple test wallets with different registration states
+- **Transaction Testing**: Executes real transactions to validate payment verification logic
+- **Scenario Coverage**: Tests both valid and invalid payment scenarios
+
+### Environment Configuration
+
+Before running the integration tests, you need to set up environment variables in a `.env` file in the `marketplace-registry-cli` directory:
+
+```sh
+FUND_WALLET_SEED=your_fund_wallet_seed
+DESTINATION_ADDRESS=your_destination_address
+FUNDING_AMOUNT=10000000
+PAYMENT_AMOUNT=5000000
+REGISTRATION_EMAIL=test@example.com
+```
+
+### Running the Integration Tests
+
+To run the integration test setup:
+
+```sh
+cd marketplace-registry-cli
+npm run build
+node dist/test-setup.js
+```
+
+The test setup will:
+
+1. **Deploy Contract**: Deploy the marketplace registry contract using the fund wallet
+2. **Create Test Wallets**: Generate two test wallets with different registration states
+3. **Fund Wallets**: Transfer funds from the fund wallet to test wallets
+4. **Register Wallets**: Register one wallet in the contract (valid scenario)
+5. **Execute Payments**: Send test payments from both registered and unregistered wallets
+6. **Generate Test Data**: Create a `test-output.json` file with all test configuration
+
+### Test Scenarios
+
+The integration tests cover the following scenarios:
+
+- **Valid Payment**: Payment from a registered wallet with correct amount
+- **Invalid Payment**: Payment from an unregistered wallet
+- **Wrong Amount**: Payment from valid sender but incorrect amount
+- **Unknown Sender**: Payment from unregistered sender
+- **No Payment**: Non-existent transaction validation
+- **Identity Matching**: Valid identity match between on-chain sender and registered identity
+- **Agent Registration**: Verification of agent registration status
+- **Sender Mismatch**: Mismatch between on-chain transaction and off-chain session
+- **Duplicate Detection**: Duplicate transaction handling
+
+### Test Output
+
+The test setup generates a `test-output.json` file containing:
+
+- Contract addresses and wallet information
+- Transaction IDs for all test scenarios
+- Test amounts and expected values
+- Metadata for integration with external test frameworks
+
+This configuration file can be used by external systems (like Wallet MCP integration tests) to validate payment verification logic against real blockchain transactions.
