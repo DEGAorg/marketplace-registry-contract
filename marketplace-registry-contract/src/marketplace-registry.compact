@@ -17,11 +17,11 @@ pragma language_version 0.15;
 
 import CompactStandardLibrary;
 
-// Map to store public keys to email addresses
+// Map to store public keys to text identifiers
 export ledger registry: Map<Bytes<32>, Opaque<"string">>;
 
-// Register a user with their email
-export circuit register(email: Opaque<"string">): [] {
+// Register a user with their text identifier
+export circuit register(text: Opaque<"string">): [] {
     // Get the user's public key
     const pkBytes = own_public_key().bytes;
     const pk = disclose(pkBytes);
@@ -30,19 +30,19 @@ export circuit register(email: Opaque<"string">): [] {
     assert !registry.member(pk)
         "User already registered";
     
-    // Store the email associated with the public key
-    const disclosedEmail = disclose(email);
-    registry.insert(pk, disclosedEmail);
+    // Store the text identifier associated with the public key
+    const disclosedText = disclose(text);
+    registry.insert(pk, disclosedText);
 }
 
-// Verify the email of a public key
-export circuit verify_email(pk: Bytes<32>): Opaque<"string"> {
+// Verify the text identifier of a public key
+export circuit verify_text(pk: Bytes<32>): Opaque<"string"> {
     // Check if the public key exists in the registry
     const disclosedPk = disclose(pk);
     assert registry.member(disclosedPk)
         "Public key not registered";
     
-    // Return the email associated with the public key
+    // Return the text identifier associated with the public key
     return registry.lookup(disclosedPk);
 }
 

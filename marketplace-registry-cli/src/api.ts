@@ -100,9 +100,9 @@ export const deploy = async (
   return marketplaceRegistryContract;
 };
 
-export const register = async (marketplaceRegistryContract: DeployedMarketplaceRegistryContract, email: string): Promise<FinalizedTxData> => {
-  logger.info('Registering email...');
-  const finalizedTxData = await marketplaceRegistryContract.callTx.register(email);
+export const register = async (marketplaceRegistryContract: DeployedMarketplaceRegistryContract, text: string): Promise<FinalizedTxData> => {
+  logger.info('Registering text identifier...');
+  const finalizedTxData = await marketplaceRegistryContract.callTx.register(text);
   logger.info(`Transaction ${finalizedTxData.public.txId} added in block ${finalizedTxData.public.blockHeight}`);
   return finalizedTxData.public;
 };
@@ -131,13 +131,13 @@ export const isPublicKeyRegistered = async (
   }
 };
 
-export const verifyEmailPure = async (
+export const verifyTextPure = async (
   providers: MarketplaceRegistryProviders,
   contractAddress: ContractAddress,
   pk: Uint8Array,
 ): Promise<string | null> => {
   assertIsContractAddress(contractAddress);
-  logger.info('Verifying email (pure read)...');
+  logger.info('Verifying text identifier (pure read)...');
 
   const state = await getMarketplaceRegistryLedgerState(providers, contractAddress);
   if (state === null) {
@@ -152,19 +152,19 @@ export const verifyEmailPure = async (
       return null;
     }
 
-    // Return the email associated with the public key
-    const email = state.registry.lookup(pk);
-    logger.info(`Email found: ${email}`);
-    return email;
+    // Return the text identifier associated with the public key
+    const text = state.registry.lookup(pk);
+    logger.info(`Text identifier found: ${text}`);
+    return text;
   } catch (error) {
-    logger.error(`Error verifying email: ${error}`);
+    logger.error(`Error verifying text identifier: ${error}`);
     return null;
   }
 };
 
-export const verifyEmail = async (marketplaceRegistryContract: DeployedMarketplaceRegistryContract, pk: Uint8Array): Promise<string> => {
-  logger.info('Verifying email...');
-  const finalizedTxData = await marketplaceRegistryContract.callTx.verify_email(pk);
+export const verifyText = async (marketplaceRegistryContract: DeployedMarketplaceRegistryContract, pk: Uint8Array): Promise<string> => {
+  logger.info('Verifying text identifier...');
+  const finalizedTxData = await marketplaceRegistryContract.callTx.verify_text(pk);
   logger.info(`Transaction ${finalizedTxData.public.txId} added in block ${finalizedTxData.public.blockHeight}`);
   return finalizedTxData.private.result;
 };
@@ -268,10 +268,132 @@ export const waitForFunds = (wallet: Wallet) =>
     ),
   );
 
-export const buildWalletAndWaitForFunds = async (
+export const buildWalletAndWaitForSync = async (
   { indexer, indexerWS, node, proofServer }: Config,
   seed: string,
   filename: string,
+): Promise<Wallet & Resource> => {
+  const directoryPath = process.env.SYNC_CACHE;
+  let wallet: Wallet & Resource;
+  if (directoryPath !== undefined) {
+    if (fs.existsSync(`${directoryPath}/${filename}`)) {
+      logger.info(`Attempting to restore state from ${directoryPath}/${filename}`);
+      try {
+        const serializedStream = fs.createReadStream(`${directoryPath}/${filename}`, 'utf-8');
+        const serialized = await streamToString(serializedStream);
+        serializedStream.on('finish', () => {
+          serializedStream.close();
+        });
+        wallet = await WalletBuilder.restore(indexer, indexerWS, proofServer, node, seed, serialized, 'info');
+        wallet.start();
+        const stateObject = JSON.parse(serialized);
+        if ((await isAnotherChain(wallet, Number(stateObject.offset))) === true) {
+          logger.warn('The chain was reset, building wallet from scratch');
+          wallet = await WalletBuilder.buildFromSeed(
+            indexer,
+            indexerWS,
+            proofServer,
+            node,
+            seed,
+            getZswapNetworkId(),
+            'info',
+          );
+          wallet.start();
+        } else {
+          const newState = await waitForSync(wallet);
+          // allow for situations when there's no new index in the network between runs
+          if (newState.syncProgress?.synced) {
+            logger.info('Wallet was able to sync from restored state');
+          } else {
+            logger.info(`Offset: ${stateObject.offset}`);
+            logger.info(`SyncProgress.lag.applyGap: ${newState.syncProgress?.lag.applyGap}`);
+            logger.info(`SyncProgress.lag.sourceGap: ${newState.syncProgress?.lag.sourceGap}`);
+            logger.warn('Wallet was not able to sync from restored state, building wallet from scratch');
+            wallet = await WalletBuilder.buildFromSeed(
+              indexer,
+              indexerWS,
+              proofServer,
+              node,
+              seed,
+              getZswapNetworkId(),
+              'info',
+            );
+            wallet.start();
+          }
+        }
+      } catch (error: unknown) {
+        if (typeof error === 'string') {
+          logger.error(error);
+        } else if (error instanceof Error) {
+          logger.error(error.message);
+        } else {
+          logger.error(error);
+        }
+        logger.warn('Wallet was not able to restore using the stored state, building wallet from scratch');
+        wallet = await WalletBuilder.buildFromSeed(
+          indexer,
+          indexerWS,
+          proofServer,
+          node,
+          seed,
+          getZswapNetworkId(),
+          'info',
+        );
+        wallet.start();
+      }
+    } else {
+      logger.info('Wallet save file not found, building wallet from scratch');
+      wallet = await WalletBuilder.buildFromSeed(
+        indexer,
+        indexerWS,
+        proofServer,
+        node,
+        seed,
+        getZswapNetworkId(),
+        'info',
+      );
+      wallet.start();
+    }
+  } else {
+    logger.info('File path for save file not found, building wallet from scratch');
+    wallet = await WalletBuilder.buildFromSeed(
+      indexer,
+      indexerWS,
+      proofServer,
+      node,
+      seed,
+      getZswapNetworkId(),
+      'info',
+    );
+    wallet.start();
+  }
+
+  // Wait for sync completion only (not for funds)
+  await waitForSync(wallet);
+  
+  const state = await Rx.firstValueFrom(wallet.state());
+  logger.info(`Your wallet seed is: ${seed}`);
+  logger.info(`Your wallet address is: ${state.address}`);
+  const coinPublicKey = state.coinPublicKeyLegacy;
+  const hexCoinPublicKey = parseCoinPublicKeyToHex(coinPublicKey, getLedgerNetworkId());
+  logger.info(`Your coin public key is: ${hexCoinPublicKey}`);
+  logger.info(`Your encryption public key is: ${state.encryptionPublicKey}`);
+  const balance = state.balances[nativeToken()];
+  logger.info(`Your wallet balance is: ${balance}`);
+  logger.info(`Wallet is fully synced and ready for transactions`);
+  return wallet;
+};
+
+export const randomBytes = (length: number): Uint8Array => {
+  const bytes = new Uint8Array(length);
+  webcrypto.getRandomValues(bytes);
+  return bytes;
+};
+
+export const buildWalletAndWaitForFunds = async (
+  { indexer, indexerWS, node, proofServer }: Config,
+  seed: string,
+  filename?: string,
 ): Promise<Wallet & Resource> => {
   const directoryPath = process.env.SYNC_CACHE;
   let wallet: Wallet & Resource;
@@ -385,14 +507,8 @@ export const buildWalletAndWaitForFunds = async (
   return wallet;
 };
 
-export const randomBytes = (length: number): Uint8Array => {
-  const bytes = new Uint8Array(length);
-  webcrypto.getRandomValues(bytes);
-  return bytes;
-};
-
 export const buildFreshWallet = async (config: Config): Promise<Wallet & Resource> =>
-  await buildWalletAndWaitForFunds(config, toHex(randomBytes(32)), '');
+  await buildWalletAndWaitForSync(config, toHex(randomBytes(32)), '');
 
 export const configureProviders = async (wallet: Wallet & Resource, config: Config) => {
   const walletAndMidnightProvider = await createWalletAndMidnightProvider(wallet);
@@ -401,7 +517,7 @@ export const configureProviders = async (wallet: Wallet & Resource, config: Conf
       privateStateStoreName: contractConfig.privateStateStoreName,
     }),
     publicDataProvider: indexerPublicDataProvider(config.indexer, config.indexerWS),
-    zkConfigProvider: new NodeZkConfigProvider<'register' | 'verify_email' | 'read_own_public_key'>(
+    zkConfigProvider: new NodeZkConfigProvider<'register' | 'verify_text' | 'read_own_public_key'>(
       contractConfig.zkConfigPath,
     ),
     proofProvider: httpClientProofProvider(config.proofServer),

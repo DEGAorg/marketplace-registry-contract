@@ -40,9 +40,9 @@ Which would you like to do? `;
 
 const MAIN_LOOP_QUESTION = `
 You can do one of the following:
-  1. Register email
+  1. Register text identifier
   2. Check if public key is registered
-  3. Verify email (pure read)
+  3. Verify text identifier (pure read)
   4. Read own public key
   5. Display current registry state
   6. Exit
@@ -83,8 +83,8 @@ const mainLoop = async (providers: MarketplaceRegistryProviders, rli: Interface)
     const choice = await rli.question(MAIN_LOOP_QUESTION);
     switch (choice) {
       case '1': {
-        const email = await rli.question('Enter email to register: ');
-        await api.register(marketplaceRegistryContract, email);
+        const text = await rli.question('Enter text identifier to register: ');
+        await api.register(marketplaceRegistryContract, text);
         break;
       }
       case '2': {
@@ -101,15 +101,15 @@ const mainLoop = async (providers: MarketplaceRegistryProviders, rli: Interface)
       case '3': {
         const pkHex = await rli.question('Enter public key (in hex): ');
         const pk = new Uint8Array(Buffer.from(pkHex.replace('0x', ''), 'hex'));
-        const verifiedEmail = await api.verifyEmailPure(
+        const verifiedText = await api.verifyTextPure(
           providers,
           marketplaceRegistryContract.deployTxData.public.contractAddress,
           pk,
         );
-        if (verifiedEmail !== null) {
-          logger.info(`Verified email: ${verifiedEmail}`);
+        if (verifiedText !== null) {
+          logger.info(`Verified text identifier: ${verifiedText}`);
         } else {
-          logger.info('Email not found for this public key');
+          logger.info('Text identifier not found for this public key');
         }
         break;
       }
