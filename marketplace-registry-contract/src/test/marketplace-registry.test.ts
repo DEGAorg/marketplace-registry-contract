@@ -55,4 +55,13 @@ describe("Marketplace Registry smart contract", () => {
     expect(publicKey).toBeInstanceOf(Uint8Array);
     expect(publicKey.length).toBe(32);
   });
+
+  it("can verify text for registered user", () => {
+    const simulator = new MarketplaceRegistrySimulator();
+    const identifier = "test-identifier-456";
+    simulator.register(identifier);
+    const publicKey = simulator.readOwnPublicKey();
+    const verifiedText = simulator.verifyText(publicKey);
+    expect(verifiedText).toBe(identifier);
+  });
 });

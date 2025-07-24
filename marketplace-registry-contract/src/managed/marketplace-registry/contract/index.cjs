@@ -73,7 +73,7 @@ class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.originalState != undefined && contextOrig_0.transactionContext != undefined))
           __compactRuntime.type_error('register',
                                       'argument 1 (as invoked from Typescript)',
-                                      'src/marketplace-registry.compact line 24, char 1',
+                                      'marketplace-registry.compact line 9 char 1',
                                       'CircuitContext',
                                       contextOrig_0)
         const context = { ...contextOrig_0 };
@@ -98,13 +98,13 @@ class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.originalState != undefined && contextOrig_0.transactionContext != undefined))
           __compactRuntime.type_error('verify_text',
                                       'argument 1 (as invoked from Typescript)',
-                                      'src/marketplace-registry.compact line 39, char 1',
+                                      'marketplace-registry.compact line 23 char 1',
                                       'CircuitContext',
                                       contextOrig_0)
         if (!(pk_0.buffer instanceof ArrayBuffer && pk_0.BYTES_PER_ELEMENT === 1 && pk_0.length === 32))
           __compactRuntime.type_error('verify_text',
                                       'argument 1 (argument 2 as invoked from Typescript)',
-                                      'src/marketplace-registry.compact line 39, char 1',
+                                      'marketplace-registry.compact line 23 char 1',
                                       'Bytes<32>',
                                       pk_0)
         const context = { ...contextOrig_0 };
@@ -128,7 +128,7 @@ class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.originalState != undefined && contextOrig_0.transactionContext != undefined))
           __compactRuntime.type_error('read_own_public_key',
                                       'argument 1 (as invoked from Typescript)',
-                                      'src/marketplace-registry.compact line 50, char 1',
+                                      'marketplace-registry.compact line 33 char 1',
                                       'CircuitContext',
                                       contextOrig_0)
         const context = { ...contextOrig_0 };
@@ -199,7 +199,7 @@ class Contract {
       currentZswapLocalState: context.currentZswapLocalState
     }
   }
-  #_own_public_key_0(context, partialProofData) {
+  #_ownPublicKey_0(context, partialProofData) {
     const result_0 = __compactRuntime.ownPublicKey(context);
     partialProofData.privateTranscriptOutputs.push({
       value: _descriptor_3.toValue(result_0),
@@ -208,7 +208,7 @@ class Contract {
     return result_0;
   }
   #_register_0(context, partialProofData, text_0) {
-    const pkBytes_0 = this.#_own_public_key_0(context, partialProofData).bytes;
+    const pkBytes_0 = this.#_ownPublicKey_0(context, partialProofData).bytes;
     const pk_0 = pkBytes_0;
     __compactRuntime.assert(!_descriptor_2.fromValue(Contract._query(context,
                                                                      partialProofData,
@@ -286,7 +286,7 @@ class Contract {
                                                                result: undefined } }]).value);
   }
   #_read_own_public_key_0(context, partialProofData) {
-    return this.#_own_public_key_0(context, partialProofData).bytes;
+    return this.#_ownPublicKey_0(context, partialProofData).bytes;
   }
   static _query(context, partialProofData, prog) {
     var res;
@@ -330,7 +330,7 @@ function ledger(state) {
     registry: {
       isEmpty(...args_0) {
         if (args_0.length !== 0)
-          throw new __compactRuntime.CompactError(`is_empty: expected 0 arguments, received ${args_0.length}`);
+          throw new __compactRuntime.CompactError(`isEmpty: expected 0 arguments, received ${args_0.length}`);
         return _descriptor_2.fromValue(Contract._query(context,
                                                        partialProofData,
                                                        [
@@ -373,7 +373,7 @@ function ledger(state) {
         if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32))
           __compactRuntime.type_error('member',
                                       'argument 1',
-                                      'src/marketplace-registry.compact line 21, char 1',
+                                      'marketplace-registry.compact line 6 char 1',
                                       'Bytes<32>',
                                       key_0)
         return _descriptor_2.fromValue(Contract._query(context,
@@ -400,7 +400,7 @@ function ledger(state) {
         if (!(key_0.buffer instanceof ArrayBuffer && key_0.BYTES_PER_ELEMENT === 1 && key_0.length === 32))
           __compactRuntime.type_error('lookup',
                                       'argument 1',
-                                      'src/marketplace-registry.compact line 21, char 1',
+                                      'marketplace-registry.compact line 6 char 1',
                                       'Bytes<32>',
                                       key_0)
         return _descriptor_1.fromValue(Contract._query(context,

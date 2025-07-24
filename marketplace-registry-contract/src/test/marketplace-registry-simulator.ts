@@ -69,8 +69,8 @@ export class MarketplaceRegistrySimulator {
     return ledger(this.circuitContext.transactionContext.state);
   }
 
-  public verifyEmail(publicKey: Uint8Array): string {
-    const result = this.contract.impureCircuits.verify_email(
+  public verifyText(publicKey: Uint8Array): string {
+    const result = this.contract.impureCircuits.verify_text(
       this.circuitContext,
       publicKey
     );
