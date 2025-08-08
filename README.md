@@ -96,6 +96,32 @@ Start unit tests:
 npm run test
 ```
 
+### Docker Testing Environment
+
+**Note: Docker is not required for building or executing the marketplace registry contract. It is provided as an optional testing environment for convenience.**
+
+Build the Docker image:
+
+```sh
+docker build -t marketplace-registry-test .
+```
+
+Run the contract compilation and tests:
+
+```sh
+docker run --rm marketplace-registry-test
+```
+
+The Docker container will:
+- Use Node.js 22.15.1
+- Automatically download and install compactc 0.24.0
+- Install all project dependencies
+- Compile the marketplace registry contract
+- Run all unit tests
+- Generate test reports
+
+The Docker setup is equivalent to running `npm run test:compile` in the `marketplace-registry-contract` directory but provides a consistent, isolated environment regardless of your local system configuration.
+
 ## CLI
 
 After building the smart contract you can deploy it using the project in the subdirectory `marketplace-registry-cli`:
