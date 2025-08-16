@@ -20,10 +20,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Node.js 20.x
+    - name: Setup Node.js 22.x
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '22.x'
         cache: 'npm'
 
     - name: Install dependencies
@@ -42,7 +42,6 @@ jobs:
         else
           echo "✅ No HIGH/CRITICAL vulnerabilities found"
         fi
-
     - name: Attempt to fix vulnerabilities
       if: failure()
       run: |
@@ -60,7 +59,6 @@ jobs:
           echo "Manual intervention required"
           exit 1
         fi
-
     - name: Analyze audit results
       run: |
         echo "## Dependency Security Audit Results" >> $GITHUB_STEP_SUMMARY
@@ -95,7 +93,6 @@ jobs:
         else
           echo "❌ Audit report not generated" >> $GITHUB_STEP_SUMMARY
         fi
-
     - name: Generate detailed vulnerability report
       if: always()
       run: |
@@ -159,7 +156,6 @@ jobs:
         echo "# Force update packages (use with caution)" >> vulnerability-details.md
         echo "npm audit fix --force" >> vulnerability-details.md
         echo "```" >> vulnerability-details.md
-
     - name: Upload audit report
       if: always()
       uses: actions/upload-artifact@v4
@@ -177,7 +173,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [22.x]
 
     steps:
     - name: Checkout repository
@@ -197,13 +193,11 @@ jobs:
         echo "Running ESLint with security focus..."
         npm run lint --workspace=marketplace-registry-contract
         npm run lint --workspace=marketplace-registry-cli
-
     - name: Run TypeScript strict checks
       run: |
         echo "Running TypeScript strict type checking..."
         npm run typecheck --workspace=marketplace-registry-contract
         npm run typecheck --workspace=marketplace-registry-cli
-
     - name: Check for common security issues
       run: |
         echo "Checking for common security issues..."
@@ -223,7 +217,6 @@ jobs:
         else
           echo "✅ No unsafe dynamic code execution detected"
         fi
-
     - name: Generate code analysis report
       if: always()
       run: |
@@ -235,7 +228,6 @@ jobs:
         echo "- **Security Checks**: ✅ Completed" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "All code quality checks passed successfully!" >> $GITHUB_STEP_SUMMARY
-
   contract-security:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -245,10 +237,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Node.js 20.x
+    - name: Setup Node.js 22.x
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: '22.x'
         cache: 'npm'
 
     - name: Install dependencies
@@ -283,7 +275,6 @@ jobs:
           echo "❌ Contract source file not found"
           exit 1
         fi
-
     - name: Validate contract structure
       run: |
         echo "Validating contract structure..."
@@ -305,7 +296,6 @@ jobs:
           echo "❌ Test directory missing"
           exit 1
         fi
-
     - name: Generate contract security report
       if: always()
       run: |
@@ -317,7 +307,6 @@ jobs:
         echo "- **Test Coverage**: ✅ Available" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "Contract security analysis completed successfully!" >> $GITHUB_STEP_SUMMARY
-
   security-summary:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -355,7 +344,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**⚠️ Security issues must be resolved before proceeding with deployment.**" >> $GITHUB_STEP_SUMMARY
         fi
-
     - name: Upload security artifacts
       if: always()
       uses: actions/upload-artifact@v4
