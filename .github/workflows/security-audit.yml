@@ -32,7 +32,34 @@ jobs:
     - name: Run npm audit
       run: |
         echo "Running npm security audit..."
-        npm audit --audit-level=moderate --json > audit-report.json || true
+        npm audit --audit-level=moderate --json > audit-report.json
+        # Check for high/critical vulnerabilities and fail if found
+        VULN_COUNT=$(npm audit --audit-level=high --json | jq '.vulnerabilities | length')
+        if [ "$VULN_COUNT" -gt 0 ]; then
+          echo "❌ HIGH/CRITICAL vulnerabilities found: $VULN_COUNT"
+          echo "Security audit failed due to high severity vulnerabilities"
+          exit 1
+        else
+          echo "✅ No HIGH/CRITICAL vulnerabilities found"
+        fi
+
+    - name: Attempt to fix vulnerabilities
+      if: failure()
+      run: |
+        echo "Attempting to fix vulnerabilities automatically..."
+        echo "Running npm audit fix..."
+        npm audit fix --audit-level=high || echo "Some vulnerabilities could not be fixed automatically"
+        
+        echo "Checking if vulnerabilities were resolved..."
+        NEW_VULN_COUNT=$(npm audit --audit-level=high --json | jq '.vulnerabilities | length')
+        if [ "$NEW_VULN_COUNT" -eq 0 ]; then
+          echo "✅ All HIGH/CRITICAL vulnerabilities were fixed automatically!"
+          echo "Security audit now passes"
+        else
+          echo "❌ $NEW_VULN_COUNT HIGH/CRITICAL vulnerabilities remain after auto-fix"
+          echo "Manual intervention required"
+          exit 1
+        fi
 
     - name: Analyze audit results
       run: |
@@ -40,18 +67,107 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         
         if [ -f "audit-report.json" ]; then
-          echo "### Security Vulnerabilities Found" >> $GITHUB_STEP_SUMMARY
-          jq -r '.vulnerabilities | to_entries[] | "**\(.key)**: \(.value.title) (Severity: \(.value.severity))"' audit-report.json >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "No vulnerabilities found or error parsing report" >> $GITHUB_STEP_SUMMARY
+          # Count vulnerabilities by severity
+          HIGH_VULNS=$(npm audit --audit-level=high --json | jq '.vulnerabilities | length' 2>/dev/null || echo "0")
+          MODERATE_VULNS=$(npm audit --audit-level=moderate --json | jq '.vulnerabilities | length' 2>/dev/null || echo "0")
+          LOW_VULNS=$(npm audit --audit-level=low --json | jq '.vulnerabilities | length' 2>/dev/null || echo "0")
+          
+          echo "### Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **HIGH/CRITICAL**: $HIGH_VULNS" >> $GITHUB_STEP_SUMMARY
+          echo "- **MODERATE**: $MODERATE_VULNS" >> $GITHUB_STEP_SUMMARY
+          echo "- **LOW**: $LOW_VULNS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$HIGH_VULNS" -gt 0 ]; then
+            echo "🚨 **SECURITY ALERT: HIGH/CRITICAL vulnerabilities detected!**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The following HIGH/CRITICAL vulnerabilities were found:" >> $GITHUB_STEP_SUMMARY
+            npm audit --audit-level=high --json | jq -r '.vulnerabilities | to_entries[] | "- **\(.key)**: \(.value.title) (Severity: \(.value.severity))"' >> $GITHUB_STEP_SUMMARY 2>/dev/null
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Action Required**: Fix these vulnerabilities before proceeding." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **No HIGH/CRITICAL vulnerabilities found**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            if [ "$MODERATE_VULNS" -gt 0 ] || [ "$LOW_VULNS" -gt 0 ]; then
+              echo "**Note**: There are $MODERATE_VULNS moderate and $LOW_VULNS low severity vulnerabilities that should be reviewed." >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
         else
-          echo "Audit report not generated" >> $GITHUB_STEP_SUMMARY
+          echo "❌ Audit report not generated" >> $GITHUB_STEP_SUMMARY
         fi
+
+    - name: Generate detailed vulnerability report
+      if: always()
+      run: |
+        echo "Generating detailed vulnerability report..."
+        
+        # Create a detailed report
+        cat > vulnerability-details.md << 'EOF'
+        # Security Vulnerability Report
+        
+        ## Summary
+        Generated on: $(date)
+        Repository: ${{ github.repository }}
+        Branch: ${{ github.ref_name }}
+        Commit: ${{ github.sha }}
+        
+        ## Vulnerability Details
+        
+        EOF
+        
+        # Add npm audit details
+        if [ -f "audit-report.json" ]; then
+          echo "### NPM Audit Results" >> vulnerability-details.md
+          echo "" >> vulnerability-details.md
+          echo "Run \`npm audit\` for full details." >> vulnerability-details.md
+          echo "" >> vulnerability-details.md
+          
+          # Add high severity vulnerabilities
+          HIGH_VULNS=$(npm audit --audit-level=high --json | jq '.vulnerabilities | length' 2>/dev/null || echo "0")
+          if [ "$HIGH_VULNS" -gt 0 ]; then
+            echo "#### HIGH/CRITICAL Vulnerabilities ($HIGH_VULNS)" >> vulnerability-details.md
+            echo "" >> vulnerability-details.md
+            npm audit --audit-level=high --json | jq -r '.vulnerabilities | to_entries[] | "- **\(.key)**: \(.value.title)"' >> vulnerability-details.md 2>/dev/null
+            echo "" >> vulnerability-details.md
+          fi
+          
+          # Add moderate vulnerabilities
+          MODERATE_VULNS=$(npm audit --audit-level=moderate --json | jq '.vulnerabilities | length' 2>/dev/null || echo "0")
+          if [ "$MODERATE_VULNS" -gt 0 ]; then
+            echo "#### MODERATE Vulnerabilities ($MODERATE_VULNS)" >> vulnerability-details.md
+            echo "" >> vulnerability-details.md
+            npm audit --audit-level=moderate --json | jq -r '.vulnerabilities | to_entries[] | "- **\(.key)**: \(.value.title)"' >> vulnerability-details.md 2>/dev/null
+            echo "" >> vulnerability-details.md
+          fi
+        fi
+        
+        echo "## Recommended Actions" >> vulnerability-details.md
+        echo "" >> vulnerability-details.md
+        echo "1. **Immediate**: Fix HIGH/CRITICAL vulnerabilities" >> vulnerability-details.md
+        echo "2. **Short-term**: Review and fix MODERATE vulnerabilities" >> vulnerability-details.md
+        echo "3. **Long-term**: Establish regular security review process" >> vulnerability-details.md
+        echo "" >> vulnerability-details.md
+        echo "## Commands to Run Locally" >> vulnerability-details.md
+        echo "" >> vulnerability-details.md
+        echo "```bash" >> vulnerability-details.md
+        echo "# Check vulnerabilities" >> vulnerability-details.md
+        echo "npm audit" >> vulnerability-details.md
+        echo "" >> vulnerability-details.md
+        echo "# Attempt automatic fixes" >> vulnerability-details.md
+        echo "npm audit fix" >> vulnerability-details.md
+        echo "" >> vulnerability-details.md
+        echo "# Force update packages (use with caution)" >> vulnerability-details.md
+        echo "npm audit fix --force" >> vulnerability-details.md
+        echo "```" >> vulnerability-details.md
 
     - name: Upload audit report
       if: always()
       uses: actions/upload-artifact@v4
       with:
         name: security-audit-report-${{ github.run_id }}
-        path: audit-report.json
+        path: |
+          audit-report.json
+          vulnerability-details.md
         retention-days: 30
 
   code-analysis:
@@ -225,9 +341,19 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The codebase meets security standards and is ready for production deployment." >> $GITHUB_STEP_SUMMARY
         else
-          echo "⚠️ **Some security checks failed. Please review the logs above.**" >> $GITHUB_STEP_SUMMARY
+          echo "🚨 **Security checks failed!**" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Address any security issues before proceeding with deployment." >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.dependency-scan.result }}" != "success" ]; then
+            echo "**Dependency Scan Failed**: HIGH/CRITICAL vulnerabilities detected that must be resolved." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Immediate Actions Required**: " >> $GITHUB_STEP_SUMMARY
+            echo "1. Review the vulnerability details above" >> $GITHUB_STEP_SUMMARY
+            echo "2. Run \`npm audit fix\` locally to attempt automatic fixes" >> $GITHUB_STEP_SUMMARY
+            echo "3. Manually update packages if auto-fix fails" >> $GITHUB_STEP_SUMMARY
+            echo "4. Re-run the security workflow to verify fixes" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**⚠️ Security issues must be resolved before proceeding with deployment.**" >> $GITHUB_STEP_SUMMARY
         fi
 
     - name: Upload security artifacts
@@ -237,5 +363,6 @@ jobs:
         name: security-audit-artifacts-${{ github.run_id }}
         path: |
           audit-report.json
+          vulnerability-details.md
           **/security-*.log
         retention-days: 90

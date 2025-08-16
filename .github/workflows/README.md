@@ -43,7 +43,7 @@ This directory contains the CI/CD workflows for the Marketplace Registry project
 
 ### 3. Security & Audit (`security-audit.yml`)
 
-**Purpose**: Security-focused analysis and vulnerability scanning.
+**Purpose**: Security-focused analysis and vulnerability scanning with strict enforcement.
 
 **Triggers**:
 - Push to `main` or `develop` branches
@@ -51,10 +51,17 @@ This directory contains the CI/CD workflows for the Marketplace Registry project
 - Weekly on Sundays at 3:00 AM UTC
 
 **Jobs**:
-- **Dependency Scan**: npm audit for known vulnerabilities
+- **Dependency Scan**: npm audit for known vulnerabilities (FAILS on HIGH/CRITICAL)
+- **Auto-fix Attempt**: Automatically attempts to fix vulnerabilities when possible
 - **Code Analysis**: ESLint, TypeScript, and security pattern checks
 - **Contract Security**: Smart contract security analysis
-- **Security Summary**: Comprehensive security report
+- **Security Summary**: Comprehensive security report with actionable recommendations
+
+**Security Enforcement**:
+- **FAILS** if HIGH/CRITICAL vulnerabilities are detected
+- **WARNS** about MODERATE/LOW vulnerabilities
+- **Auto-fixes** vulnerabilities when possible
+- **Generates detailed reports** for manual resolution
 
 ## Workflow Dependencies
 
@@ -150,6 +157,45 @@ Artifacts are retained for 7-90 days depending on the workflow.
    - Verify Dockerfile syntax
    - Check for missing dependencies
    - Ensure proper context and file copying
+
+4. **Security Workflow Fails**
+   - Check for HIGH/CRITICAL vulnerabilities with `npm audit`
+   - Run `npm audit fix` locally to attempt automatic fixes
+   - Review the detailed vulnerability report in artifacts
+   - Manually update packages if auto-fix fails
+
+### Security Vulnerability Resolution
+
+When the security workflow fails due to vulnerabilities:
+
+1. **Immediate Action Required**:
+   ```bash
+   # Check current vulnerabilities
+   npm audit
+   
+   # Attempt automatic fixes
+   npm audit fix
+   
+   # Check if vulnerabilities remain
+   npm audit --audit-level=high
+   ```
+
+2. **Manual Resolution**:
+   - Review the `vulnerability-details.md` report in workflow artifacts
+   - Update specific packages manually if needed
+   - Test locally after fixes
+   - Re-run the security workflow
+
+3. **Force Updates (Use with caution)**:
+   ```bash
+   npm audit fix --force
+   npm update
+   ```
+
+4. **Verify Fixes**:
+   - Run `npm audit` locally
+   - Re-run the security workflow
+   - Check that no HIGH/CRITICAL vulnerabilities remain
 
 ### Debugging
 
