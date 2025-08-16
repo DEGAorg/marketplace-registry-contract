@@ -1,0 +1,253 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ feature/docker ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      testnet:
+        description: 'Run against testnet'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  testnet-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    name: Testnet Integration Tests
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build all components
+      run: |
+        echo "Building all components..."
+        npm run build --workspace=marketplace-registry-contract
+        npm run build --workspace=marketplace-registry-cli
+
+    - name: Setup test environment
+      run: |
+        echo "Setting up test environment..."
+        mkdir -p test-results
+        mkdir -p logs
+
+    - name: Run test setup
+      working-directory: ./marketplace-registry-cli
+      env:
+        NODE_ENV: test
+        CI: true
+      run: |
+        echo "Running test setup..."
+        npm run test-setup
+
+    - name: Run testnet remote tests
+      working-directory: ./marketplace-registry-cli
+      env:
+        NODE_ENV: test
+        CI: true
+        RUN_ENV_TESTS: true
+        TEST_ENV: testnet
+      run: |
+        echo "Running testnet remote tests..."
+        npm run test-against-testnet
+
+    - name: Generate integration test report
+      if: always()
+      run: |
+        echo "## Testnet Integration Test Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Environment" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node.js Version**: ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Test Environment**: Testnet" >> $GITHUB_STEP_SUMMARY
+        echo "- **CI Environment**: ${{ env.CI }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "test-results/e2e-full-report.json" ]; then
+          echo "### Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+          cat test-results/e2e-full-report.json >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "Test results file not found" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload integration test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results-${{ github.run_id }}
+        path: |
+          test-results/
+          logs/
+          marketplace-registry-cli/dist/
+        retention-days: 30
+
+  local-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    name: Local Integration Tests
+    needs: testnet-integration
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build all components
+      run: |
+        echo "Building all components..."
+        npm run build --workspace=marketplace-registry-contract
+        npm run build --workspace=marketplace-registry-cli
+
+    - name: Setup test environment
+      run: |
+        echo "Setting up local test environment..."
+        mkdir -p test-results
+        mkdir -p logs
+
+    - name: Run local integration tests
+      working-directory: ./marketplace-registry-cli
+      env:
+        NODE_ENV: test
+        CI: true
+      run: |
+        echo "Running local integration tests..."
+        npm run test-api
+
+    - name: Run standalone tests
+      working-directory: ./marketplace-registry-cli
+      env:
+        NODE_ENV: test
+        CI: true
+      run: |
+        echo "Running standalone tests..."
+        npm run standalone
+
+    - name: Generate local test report
+      if: always()
+      run: |
+        echo "## Local Integration Test Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Environment" >> $GITHUB_STEP_SUMMARY
+        echo "- **Node.js Version**: ${{ matrix.node-version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Test Environment**: Local" >> $GITHUB_STEP_SUMMARY
+        echo "- **CI Environment**: ${{ env.CI }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ Local integration tests completed" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload local test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: local-integration-results-${{ github.run_id }}
+        path: |
+          test-results/
+          logs/
+          marketplace-registry-cli/dist/
+        retention-days: 14
+
+  performance-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    name: Performance & Load Tests
+    needs: [testnet-integration, local-integration]
+    if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build all components
+      run: |
+        echo "Building all components..."
+        npm run build --workspace=marketplace-registry-contract
+        npm run build --workspace=marketplace-registry-cli
+
+    - name: Setup performance test environment
+      run: |
+        echo "Setting up performance test environment..."
+        mkdir -p test-results
+        mkdir -p logs
+
+    - name: Run performance benchmarks
+      working-directory: ./marketplace-registry-cli
+      env:
+        NODE_ENV: test
+        CI: true
+      run: |
+        echo "Running performance benchmarks..."
+        echo "1. API performance tests..."
+        npm run test-api 2>&1 | tee performance-api.log
+        echo "2. Contract compilation performance..."
+        cd ../marketplace-registry-contract
+        time npm run compact 2>&1 | tee performance-compact.log
+
+    - name: Extract performance metrics
+      run: |
+        echo "## Performance Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "marketplace-registry-cli/performance-api.log" ]; then
+          echo "### API Performance Metrics" >> $GITHUB_STEP_SUMMARY
+          grep -E "(✅|❌).*\([0-9]+ms\)" marketplace-registry-cli/performance-api.log | head -10 >> $GITHUB_STEP_SUMMARY || echo "No API performance data found" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f "marketplace-registry-contract/performance-compact.log" ]; then
+          echo "### Contract Compilation Performance" >> $GITHUB_STEP_SUMMARY
+          grep -E "real|user|sys" marketplace-registry-contract/performance-compact.log >> $GITHUB_STEP_SUMMARY || echo "No compilation performance data found" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Upload performance test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-test-results-${{ github.run_id }}
+        path: |
+          **/performance-*.log
+          test-results/
+          logs/
+        retention-days: 14

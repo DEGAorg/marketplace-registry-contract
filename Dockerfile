@@ -6,7 +6,10 @@ RUN apk add --no-cache \
     curl \
     unzip \
     wget \
-    bash
+    bash \
+    python3 \
+    make \
+    g++
 
 # Set working directory
 WORKDIR /app
@@ -28,22 +31,19 @@ ENV PATH="/usr/local/compactc:${PATH}"
 # Set COMPACT_HOME environment variable
 ENV COMPACT_HOME="/usr/local/compactc"
 
-# Copy package files
+# Copy package files for workspaces
 COPY package*.json ./
 COPY marketplace-registry-contract/package*.json ./marketplace-registry-contract/
 COPY marketplace-registry-cli/package*.json ./marketplace-registry-cli/
 
-# Install dependencies
+# Install dependencies using workspaces
 RUN npm ci
 
 # Copy the rest of the application
 COPY . .
 
-# Set working directory to contract folder for testing
-WORKDIR /app/marketplace-registry-contract
-
 # Verify compactc installation
 RUN compactc --version
 
-# Default command to run tests
-CMD ["npm", "run", "test:compile"]
+# Default command to run tests by changing to the correct directory
+CMD ["sh", "-c", "cd marketplace-registry-contract && npm run test:compile"]
