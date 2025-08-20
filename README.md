@@ -184,6 +184,8 @@ The deployment script will:
 
 For more information about automated deployment, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+For comprehensive testing guidance, see [TEST-GUIDE.md](docs/test-guide.md).
+
 ## Testing
 
 The CLI provides multiple levels of testing:
