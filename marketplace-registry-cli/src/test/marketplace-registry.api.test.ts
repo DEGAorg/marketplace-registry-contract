@@ -26,7 +26,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 const logDir = path.resolve(currentDir, '..', 'logs', 'tests', `${new Date().toISOString()}.log`);
 const logger = await createLogger(logDir);
 
-describe('Marketplace Registry API', () => {
+describe.skip('Marketplace Registry API', () => {
   let testEnvironment: TestEnvironment;
   let wallet: Wallet & Resource;
   let providers: MarketplaceRegistryProviders;

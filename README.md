@@ -136,7 +136,12 @@ Build from source code:
 npm run build
 ```
 
-Run the DApp:
+### Deployment Options
+
+The CLI provides multiple ways to deploy the contract:
+
+#### Interactive Deployment
+Run the DApp interactively:
 
 ```sh
 npm run testnet-remote
@@ -156,6 +161,56 @@ npm run testnet-remote-ps
 ```
 
 Then follow the instructions from the CLI.
+
+#### Automated Deployment (CI/CD)
+
+For automated deployments in CI/CD environments, use the dedicated deployment script:
+
+```sh
+# Set environment variables
+export DEPLOY_WALLET_SEED="your-wallet-seed-here"
+export REGISTRATION_EMAIL="deployer@example.com"  # Optional
+export REGISTER_DEPLOYER="true"                   # Optional
+
+# Run deployment
+npm run deploy-contract
+```
+
+The deployment script will:
+- Deploy the contract using the specified wallet
+- Optionally register the deploy wallet in the contract
+- Generate a `deployment-output.json` file with contract details
+- Provide detailed logging for CI/CD integration
+
+For more information about automated deployment, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+## Testing
+
+The CLI provides multiple levels of testing:
+
+### Unit Tests
+
+The CLI includes unit tests that validate functionality without requiring blockchain connections or deployments. These are fast, safe tests perfect for development and CI/CD.
+
+**Available unit test commands:**
+
+```sh
+# Run deployment unit tests
+npm run test
+```
+
+**What the unit tests validate:**
+- Environment variable validation
+- Configuration handling
+- Output structure validation
+- Error handling
+- Function interfaces and types
+
+These tests are completely safe to run as they **do not**:
+- Connect to any blockchain network
+- Create or use real wallets
+- Deploy actual contracts
+- Make network requests
 
 ## On-Chain Integration Tests
 
