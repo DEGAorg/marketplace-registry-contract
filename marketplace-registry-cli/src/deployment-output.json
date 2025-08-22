@@ -1,0 +1,27 @@
+{
+  "contract": {
+    "address": "0200fcc6360e77ca05cfbed3c7a92eeb99e9919f4bec906be9fb25e32f7b025bc653",
+    "description": "Marketplace registry contract address"
+  },
+  "deployWallet": {
+    "address": "mn_shield-addr_test14yvmmvghc8kaleqsrrk4y7jc4lg5zwadg95e3k2krlxkezux6v0qxqyqasjwleswjw658he7dfhzwx350ttrx34hxpr0c8gfwjvapqhluq68w6tk",
+    "publicKey": "a919bdb117c1eddfe41018ed527a58afd1413bad416998d9561fcd6c8b86d31e",
+    "description": "Wallet used to deploy the contract"
+  },
+  "transactions": {
+    "deploy": {
+      "txId": "000000000fd30450cbef55bcadadec3e81efa7d5f773757e02b59047b53f6c1b90bebc96",
+      "description": "Contract deployment transaction"
+    },
+    "registration": {
+      "txId": "00000000310bcc40f689e7cb022a3e9950e1966f6a880c87edf76a05d698d94c7984cf64",
+      "email": "deployer@example.com",
+      "description": "Deploy wallet registration transaction"
+    }
+  },
+  "metadata": {
+    "deploymentScriptVersion": "1.0.0",
+    "lastUpdated": "2025-08-20T02:09:59.310Z",
+    "description": "Deployment output for Marketplace Registry contract"
+  }
+}
