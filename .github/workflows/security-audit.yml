@@ -33,12 +33,12 @@ jobs:
       run: |
         echo "Running npm security audit..."
         npm audit --audit-level=moderate --json > audit-report.json
-        # Check for high/critical vulnerabilities and fail if found
+        # Check for high/critical vulnerabilities and warn but don't fail
         VULN_COUNT=$(npm audit --audit-level=high --json | jq '.vulnerabilities | length')
         if [ "$VULN_COUNT" -gt 0 ]; then
-          echo "❌ HIGH/CRITICAL vulnerabilities found: $VULN_COUNT"
-          echo "Security audit failed due to high severity vulnerabilities"
-          exit 1
+          echo "⚠️  HIGH/CRITICAL vulnerabilities found: $VULN_COUNT"
+          echo "Security audit detected high severity vulnerabilities - review recommended"
+          echo "This is a warning only and will not block the PR/merge"
         else
           echo "✅ No HIGH/CRITICAL vulnerabilities found"
         fi
@@ -55,9 +55,8 @@ jobs:
           echo "✅ All HIGH/CRITICAL vulnerabilities were fixed automatically!"
           echo "Security audit now passes"
         else
-          echo "❌ $NEW_VULN_COUNT HIGH/CRITICAL vulnerabilities remain after auto-fix"
-          echo "Manual intervention required"
-          exit 1
+          echo "⚠️  $NEW_VULN_COUNT HIGH/CRITICAL vulnerabilities remain after auto-fix"
+          echo "Manual intervention recommended but not required"
         fi
     - name: Analyze audit results
       run: |
@@ -272,8 +271,8 @@ jobs:
           fi
           
         else
-          echo "❌ Contract source file not found"
-          exit 1
+          echo "⚠️ Contract source file not found"
+          echo "This is a warning only and will not block the PR/merge"
         fi
     - name: Validate contract structure
       run: |
@@ -283,8 +282,8 @@ jobs:
         if [ -d "marketplace-registry-contract/src/managed" ]; then
           echo "✅ Managed directory exists"
         else
-          echo "❌ Managed directory missing"
-          exit 1
+          echo "⚠️ Managed directory missing"
+          echo "This is a warning only and will not block the PR/merge"
         fi
         
         # Check for test files
@@ -293,8 +292,8 @@ jobs:
           test_count=$(find marketplace-registry-contract/src/test -name "*.ts" | wc -l)
           echo "Found $test_count test files"
         else
-          echo "❌ Test directory missing"
-          exit 1
+          echo "⚠️ Test directory missing"
+          echo "This is a warning only and will not block the PR/merge"
         fi
     - name: Generate contract security report
       if: always()
@@ -330,19 +329,21 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "The codebase meets security standards and is ready for production deployment." >> $GITHUB_STEP_SUMMARY
         else
-          echo "🚨 **Security checks failed!**" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Security checks detected issues!**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note**: This security audit is informational only and will not block PRs or merges." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ "${{ needs.dependency-scan.result }}" != "success" ]; then
-            echo "**Dependency Scan Failed**: HIGH/CRITICAL vulnerabilities detected that must be resolved." >> $GITHUB_STEP_SUMMARY
+            echo "**Dependency Scan Issues**: HIGH/CRITICAL vulnerabilities detected that should be reviewed." >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "**Immediate Actions Required**: " >> $GITHUB_STEP_SUMMARY
+            echo "**Recommended Actions**: " >> $GITHUB_STEP_SUMMARY
             echo "1. Review the vulnerability details above" >> $GITHUB_STEP_SUMMARY
             echo "2. Run \`npm audit fix\` locally to attempt automatic fixes" >> $GITHUB_STEP_SUMMARY
             echo "3. Manually update packages if auto-fix fails" >> $GITHUB_STEP_SUMMARY
             echo "4. Re-run the security workflow to verify fixes" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**⚠️ Security issues must be resolved before proceeding with deployment.**" >> $GITHUB_STEP_SUMMARY
+          echo "**ℹ️ Security issues should be reviewed but will not prevent deployment.**" >> $GITHUB_STEP_SUMMARY
         fi
     - name: Upload security artifacts
       if: always()

@@ -9,122 +9,177 @@ This directory contains the CI/CD workflows for the Marketplace Registry project
 **Purpose**: Core continuous integration pipeline that runs on every push and pull request.
 
 **Triggers**:
-- Push to `main` or `develop` branches
+- Push to `feature/docker` branch
 - Pull requests to `main` or `develop` branches
-- Daily at 2:00 AM UTC (scheduled)
 
 **Jobs**:
-- **Contract Tests**: Compiles and tests the smart contract across Node.js versions (18.20.5, 20.x, 22.x)
-- **CLI Tests**: Builds and tests the CLI application
-- **Docker Validation**: Builds and validates the Docker image
-- **Quality Checks**: Security audits, package consistency, and workspace validation
-- **Integration Tests**: Full end-to-end testing (main branch only)
+- **Contract Tests**: Compiles and tests the smart contract using Node.js 22.x
+- **CompactC Compilation**: Installs CompactC compiler and runs compilation + tests (matching Dockerfile behavior)
+- **Quality Checks**: Package consistency and workspace validation
 - **Test Report**: Generates comprehensive test summaries
 
-**Matrix Testing**: Tests against multiple Node.js versions to ensure compatibility.
+**Testing Strategy**: Uses native CI environment for fast execution while validating the same compilation process as the Dockerfile.
 
-### 2. Integration Tests (`integration-tests.yml`)
+### 2. Security & Audit (`security-audit.yml`)
 
-**Purpose**: Comprehensive integration testing including testnet and local environment validation.
-
-**Triggers**:
-- Push to `main` branch
-- Manual workflow dispatch (with optional testnet flag)
-
-**Jobs**:
-- **Testnet Integration**: Tests against the actual testnet blockchain
-- **Local Integration**: Tests in local environment with containers
-- **Performance Tests**: Benchmarks and performance metrics (scheduled)
-
-**Features**:
-- Real blockchain interaction testing
-- Performance benchmarking
-- Comprehensive test reporting
-
-### 3. Security & Audit (`security-audit.yml`)
-
-**Purpose**: Security-focused analysis and vulnerability scanning with strict enforcement.
+**Purpose**: Security-focused analysis and vulnerability scanning with informational notifications.
 
 **Triggers**:
-- Push to `main` or `develop` branches
+- Push to `feature/docker` branch
 - Pull requests to `main` or `develop` branches
-- Weekly on Sundays at 3:00 AM UTC
 
 **Jobs**:
-- **Dependency Scan**: npm audit for known vulnerabilities (FAILS on HIGH/CRITICAL)
+- **Dependency Scan**: npm audit for known vulnerabilities (INFORMATIONAL only)
 - **Auto-fix Attempt**: Automatically attempts to fix vulnerabilities when possible
-- **Code Analysis**: ESLint, TypeScript, and security pattern checks
+- **Code Analysis**: ESLint, TypeScript, and security pattern checks (includes CLI workspace)
 - **Contract Security**: Smart contract security analysis
 - **Security Summary**: Comprehensive security report with actionable recommendations
 
 **Security Enforcement**:
-- **FAILS** if HIGH/CRITICAL vulnerabilities are detected
-- **WARNS** about MODERATE/LOW vulnerabilities
+- **INFORMATIONAL**: Provides warnings and recommendations without blocking
 - **Auto-fixes** vulnerabilities when possible
 - **Generates detailed reports** for manual resolution
+
+### 3. Checkmarx One Scan (`checkmarx.yaml`)
+
+**Purpose**: Static Application Security Testing (SAST) for code vulnerability detection.
+
+**Triggers**:
+- Pull requests to any branch
+- Push to `main` branch
+
+**Features**:
+- **SAST scanning**: Static code analysis for security vulnerabilities
+- **Server health monitoring**: Graceful handling of service downtime
+- **Informational**: Provides security insights without blocking
+
+### 4. Slack Notifications (`slack-notifications.yml`)
+
+**Purpose**: Sends notifications to Slack when workflows complete.
+
+**Triggers**:
+- When any monitored workflow completes (success or failure)
+
+**Features**:
+- **Real-time notifications**: Immediate feedback on workflow status
+- **Dynamic status handling**: Automatically shows success/failure with appropriate emojis
+- **Comprehensive details**: Includes repo, branch, and actor information
+- **Direct links**: Links to workflow run details
+- **Single job design**: Efficient and maintainable
+
+## Notification Setup
+
+### Slack Notifications
+
+To enable Slack notifications:
+
+1. **Create a Slack App**:
+   - Go to https://api.slack.com/apps
+   - Click "Create New App" → "From scratch"
+   - Name it "GitHub Actions Notifications"
+   - Select your workspace
+
+2. **Configure Incoming Webhooks**:
+   - Go to "Incoming Webhooks" in the left sidebar
+   - Click "Activate Incoming Webhooks"
+   - Click "Add New Webhook to Workspace"
+   - Select the channel (e.g., `#ci-cd`)
+   - Copy the webhook URL
+
+3. **Add GitHub Secret**:
+   - Go to your GitHub repository
+   - Navigate to Settings → Secrets and variables → Actions
+   - Click "New repository secret"
+   - Name: `SLACK_WEBHOOK_URL`
+   - Value: Paste the webhook URL from step 2
+
+4. **Customize Channel**:
+   - Edit `.github/workflows/slack-notifications.yml`
+   - Change `#ci-cd` to your desired Slack channel
+
+### Email Notifications
+
+GitHub provides email notifications by default:
+
+1. **Repository Settings**:
+   - Go to repository Settings → Notifications
+   - Configure email preferences
+
+2. **Personal Settings**:
+   - Go to GitHub.com → Settings → Notifications
+   - Configure workflow notification preferences
+
+### GitHub UI Notifications
+
+- **Bell Icon**: Shows workflow status in GitHub UI
+- **Repository Tab**: Shows recent workflow runs
+- **Pull Request Checks**: Shows status directly on PRs
 
 ## Workflow Dependencies
 
 ```
 ci-tests.yml
 ├── contract-tests
-├── cli-tests (depends on: contract-tests)
-├── docker-validation (depends on: contract-tests)
+├── compactc-compilation (depends on: contract-tests)
 ├── quality-checks (depends on: contract-tests)
-├── integration-tests (depends on: contract-tests, cli-tests, docker-validation)
 └── test-report (depends on: all above)
-
-integration-tests.yml
-├── testnet-integration
-├── local-integration (depends on: testnet-integration)
-└── performance-tests (depends on: testnet-integration, local-integration)
 
 security-audit.yml
 ├── dependency-scan
 ├── code-analysis
 ├── contract-security
 └── security-summary (depends on: all above)
+
+checkmarx.yaml
+└── build (standalone)
+
+slack-notifications.yml
+└── notify (triggers on workflow completion)
 ```
 
 ## Manual Workflow Execution
 
-### Trigger Integration Tests Manually
+### Trigger CI Tests Manually
 
-You can manually trigger the integration tests workflow:
+You can manually trigger the CI tests workflow:
 
 1. Go to the **Actions** tab in your GitHub repository
-2. Select **Integration Tests** workflow
+2. Select **CI Tests** workflow
 3. Click **Run workflow**
-4. Choose the branch and optionally enable testnet testing
+4. Choose the branch
 5. Click **Run workflow**
 
-### Testnet Testing
+### CompactC Compilation Testing
 
-The integration tests can run against the actual testnet blockchain. This requires:
+The CompactC compilation job validates the same compilation process as the Dockerfile:
 
-- Valid testnet configuration
-- Proof server availability
-- Test wallet setup
+- Installs CompactC compiler in the CI environment
+- Runs `npm run test:compile` (compilation + tests)
+- Verifies compilation artifacts are created
+- Matches the Dockerfile's default command behavior
 
 ## Environment Variables
 
-### Required for Testnet Tests
+### Required for CI Tests
 
 ```bash
 NODE_ENV=test
 CI=true
-RUN_ENV_TESTS=true
-TEST_ENV=testnet
 ```
 
-### Optional Environment Variables
+### CompactC Environment Variables
+
+The CompactC compilation job automatically sets:
 
 ```bash
-FUND_WALLET_SEED=your_fund_wallet_seed
-DESTINATION_ADDRESS=your_destination_address
-FUNDING_AMOUNT=10000000
-PAYMENT_AMOUNT=5000000
-REGISTRATION_EMAIL=test@example.com
+COMPACT_HOME=/usr/local/compactc
+PATH=/usr/local/compactc:$PATH
+```
+
+### Required for Notifications
+
+```bash
+SLACK_WEBHOOK_URL=your_slack_webhook_url
 ```
 
 ## Test Artifacts
@@ -144,31 +199,40 @@ Artifacts are retained for 7-90 days depending on the workflow.
 ### Common Issues
 
 1. **Contract Compilation Fails**
-   - Verify `compactc` is available in CI environment
+   - Verify `compactc` is properly installed in CI environment
    - Check contract source syntax
    - Ensure all dependencies are installed
+   - Verify `COMPACT_HOME` environment variable is set
 
-2. **Tests Fail in CI but Pass Locally**
-   - Check Node.js version compatibility
-   - Verify environment variables are set
+2. **CompactC Compilation Fails**
+   - Check if CompactC download URL is accessible
+   - Verify system dependencies (wget, unzip) are available
+   - Check if compilation artifacts are created in `dist/` directory
+   - Review the `npm run test:compile` command output
+
+3. **Tests Fail in CI but Pass Locally**
+   - Check Node.js version compatibility (22.x)
+   - Verify environment variables are set correctly
    - Check for platform-specific issues
+   - Ensure CompactC is available in local environment
 
-3. **Docker Build Fails**
-   - Verify Dockerfile syntax
-   - Check for missing dependencies
-   - Ensure proper context and file copying
-
-4. **Security Workflow Fails**
+4. **Security Workflow Issues**
    - Check for HIGH/CRITICAL vulnerabilities with `npm audit`
    - Run `npm audit fix` locally to attempt automatic fixes
    - Review the detailed vulnerability report in artifacts
    - Manually update packages if auto-fix fails
 
+5. **Slack Notifications Not Working**
+   - Verify `SLACK_WEBHOOK_URL` secret is set correctly
+   - Check Slack app permissions
+   - Verify channel name is correct
+   - Check workflow trigger conditions
+
 ### Security Vulnerability Resolution
 
-When the security workflow fails due to vulnerabilities:
+When the security workflow detects vulnerabilities:
 
-1. **Immediate Action Required**:
+1. **Review the Report**:
    ```bash
    # Check current vulnerabilities
    npm audit
@@ -206,10 +270,11 @@ When the security workflow fails due to vulnerabilities:
 
 ## Performance Considerations
 
-- **Timeout Limits**: Jobs have appropriate timeout limits (15-90 minutes)
+- **Timeout Limits**: Jobs have appropriate timeout limits (15-30 minutes)
 - **Parallel Execution**: Independent jobs run in parallel when possible
 - **Caching**: npm dependencies are cached for faster builds
-- **Matrix Testing**: Tests run against multiple Node.js versions efficiently
+- **Native CI Testing**: Uses native environment for faster execution than Docker
+- **CompactC Installation**: Optimized installation process for CI environment
 
 ## Security Features
 

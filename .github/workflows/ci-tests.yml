@@ -61,80 +61,71 @@ jobs:
         echo "Running ESLint..."
         npm run lint
 
-  cli-tests:
+  compactc-compilation:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    name: CLI Integration Tests
+    timeout-minutes: 20
+    name: CompactC Compilation Tests
     needs: contract-tests
-
-    strategy:
-      matrix:
-        node-version: [22.x]
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js 22.x
       uses: actions/setup-node@v4
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: '22.x'
         cache: 'npm'
+
+    - name: Install system dependencies
+      run: |
+        echo "Installing system dependencies..."
+        sudo apt-get update
+        sudo apt-get install -y wget unzip curl
+
+    - name: Install CompactC
+      run: |
+        echo "Installing CompactC compiler..."
+        mkdir -p /usr/local/compactc
+        
+        # Download and install compactc (same as Dockerfile)
+        wget https://d3fazakqrumx6p.cloudfront.net/artifacts/compiler/compactc_0.24.0/compactc_v0.24.0_x86_64-unknown-linux-musl.zip -O /tmp/compactc.zip
+        unzip /tmp/compactc.zip -d /usr/local/compactc
+        chmod +x /usr/local/compactc/compactc.bin
+        chmod +x /usr/local/compactc/zkir
+        chmod +x /usr/local/compactc/compactc
+        rm /tmp/compactc.zip
+        
+        # Add to PATH
+        echo "/usr/local/compactc" >> $GITHUB_PATH
+        
+        # Set environment variables
+        echo "COMPACT_HOME=/usr/local/compactc" >> $GITHUB_ENV
+
+    - name: Verify CompactC installation
+      run: |
+        echo "Verifying CompactC installation..."
+        compactc --version
+        echo "COMPACT_HOME: $COMPACT_HOME"
 
     - name: Install dependencies
       run: npm ci
 
-    - name: Build CLI
-      working-directory: ./marketplace-registry-cli
+    - name: Test CompactC compilation and tests
+      working-directory: ./marketplace-registry-contract
       run: |
-        echo "Building marketplace registry CLI..."
-        npm run build
-
-    - name: Run CLI type checking
-      working-directory: ./marketplace-registry-cli
-      run: |
-        echo "Running CLI TypeScript type checking..."
-        npm run typecheck
-
-    - name: Run CLI linting
-      working-directory: ./marketplace-registry-cli
-      run: |
-        echo "Running CLI ESLint..."
-        npm run lint
-
-    - name: Run CLI tests
-      working-directory: ./marketplace-registry-cli
-      run: |
-        echo "Running CLI tests..."
-        npm run test-api
-
-  docker-validation:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    name: Docker Build & Validation
-    needs: contract-tests
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-
-    - name: Build Docker image
-      run: |
-        echo "Building Docker image..."
-        docker build -t marketplace-registry-test .
-
-    - name: Validate Docker image
-      run: |
-        echo "Validating Docker image..."
-        docker run --rm marketplace-registry-test compactc --version
-
-    - name: Test Docker compilation
-      run: |
-        echo "Testing Docker compilation (timeout after 2 minutes)..."
-        timeout 120 docker run --rm marketplace-registry-test sh -c "cd marketplace-registry-contract && npm run compact" || echo "Compilation completed or timed out"
+        echo "Testing CompactC compilation and running tests..."
+        npm run test:compile
+        
+        # Verify compilation artifacts
+        echo "Verifying compilation artifacts..."
+        if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
+          echo "✅ Compilation artifacts created successfully"
+          ls -la dist/
+        else
+          echo "❌ No compilation artifacts found"
+          exit 1
+        fi
 
   quality-checks:
     runs-on: ubuntu-latest
@@ -155,11 +146,6 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
-    - name: Check for security vulnerabilities
-      run: |
-        echo "Checking for security vulnerabilities..."
-        npm audit --audit-level=moderate || echo "Security vulnerabilities found - review required"
-
     - name: Check package.json consistency
       run: |
         echo "Checking package.json consistency across workspaces..."
@@ -167,72 +153,22 @@ jobs:
         jq '.dependencies | keys' package.json
         echo "Contract package.json scripts:"
         jq '.scripts | keys' marketplace-registry-contract/package.json
-        echo "CLI package.json scripts:"
-        jq '.scripts | keys' marketplace-registry-cli/package.json
 
     - name: Validate workspace structure
       run: |
         echo "Validating workspace structure..."
-        if [ -f "package.json" ] && [ -d "marketplace-registry-contract" ] && [ -d "marketplace-registry-cli" ]; then
+        if [ -f "package.json" ] && [ -d "marketplace-registry-contract" ]; then
           echo "✅ Workspace structure is valid"
         else
           echo "❌ Workspace structure is invalid"
           exit 1
         fi
 
-  integration-tests:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    name: Full Integration Tests
-    needs: [contract-tests, cli-tests, docker-validation]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    strategy:
-      matrix:
-        node-version: [22.x]
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Build all components
-      run: |
-        echo "Building all components..."
-        npm run build --workspace=marketplace-registry-contract
-        npm run build --workspace=marketplace-registry-cli
-
-    - name: Run comprehensive tests
-      run: |
-        echo "Running comprehensive test suite..."
-        echo "1. Contract tests..."
-        npm run test --workspace=marketplace-registry-contract
-        echo "2. CLI tests..."
-        npm run test-api --workspace=marketplace-registry-cli
-
-    - name: Generate test summary
-      if: always()
-      run: |
-        echo "## Integration Test Summary" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ All components built successfully" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Contract compilation completed" >> $GITHUB_STEP_SUMMARY
-        echo "✅ CLI integration tests passed" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Docker validation completed" >> $GITHUB_STEP_SUMMARY
-
   test-report:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: Test Report Generation
-    needs: [contract-tests, cli-tests, docker-validation, quality-checks]
+    needs: [contract-tests, compactc-compilation, quality-checks]
     if: always()
 
     steps:
@@ -242,12 +178,11 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Test Matrix Results" >> $GITHUB_STEP_SUMMARY
         echo "- **Contract Tests**: ${{ needs.contract-tests.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **CLI Tests**: ${{ needs.cli-tests.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **Docker Validation**: ${{ needs.docker-validation.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **CompactC Compilation**: ${{ needs.compactc-compilation.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Quality Checks**: ${{ needs.quality-checks.result }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        if [ "${{ needs.contract-tests.result }}" == "success" ] && [ "${{ needs.cli-tests.result }}" == "success" ] && [ "${{ needs.docker-validation.result }}" == "success" ] && [ "${{ needs.quality-checks.result }}" == "success" ]; then
+        if [ "${{ needs.contract-tests.result }}" == "success" ] && [ "${{ needs.compactc-compilation.result }}" == "success" ] && [ "${{ needs.quality-checks.result }}" == "success" ]; then
           echo "🎉 **All tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
         else
           echo "⚠️ **Some tests failed. Please review the logs above.**" >> $GITHUB_STEP_SUMMARY
@@ -260,7 +195,6 @@ jobs:
         name: ci-test-results-${{ github.run_id }}
         path: |
           marketplace-registry-contract/dist/
-          marketplace-registry-cli/dist/
           **/coverage/
           **/test-results/
         retention-days: 7

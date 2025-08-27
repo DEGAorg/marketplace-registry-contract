@@ -1,0 +1,45 @@
+name: Slack Notifications
+
+on:
+  workflow_run:
+    workflows: ["CI Tests", "Security & Audit", "Checkmarx One Scan"]
+    types: [completed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion != 'skipped' }}
+    
+    steps:
+      - name: Check Slack Configuration
+        id: check-slack
+        run: |
+          if [ -z "${{ secrets.SLACK_WEBHOOK_URL }}" ]; then
+            echo "⚠️ SLACK_WEBHOOK_URL not configured - skipping notifications"
+            echo "slack_configured=false" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Slack webhook configured - sending notifications"
+            echo "slack_configured=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify Slack
+        if: steps.check-slack.outputs.slack_configured == 'true'
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ github.event.workflow_run.conclusion }}
+          channel: '#ci-cd'  # Change to your Slack channel
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          text: |
+            ${{ github.event.workflow_run.conclusion == 'success' && '✅' || '🚨' }} **${{ github.event.workflow_run.name }}** - ${{ github.event.workflow_run.conclusion }}
+            
+            **Repo**: ${{ github.repository }}
+            **Branch**: ${{ github.event.workflow_run.head_branch }}
+            **By**: ${{ github.event.workflow_run.actor.login }}
+            
+            **Details**: ${{ github.event.workflow_run.html_url }}
+
+      - name: Skip Notification
+        if: steps.check-slack.outputs.slack_configured == 'false'
+        run: |
+          echo "ℹ️ Slack notifications skipped - webhook not configured"
+          echo "To enable Slack notifications, add SLACK_WEBHOOK_URL secret to repository settings"
