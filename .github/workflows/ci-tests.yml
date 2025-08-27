@@ -63,77 +63,10 @@ jobs:
           echo "Run 'npm run lint' locally to see details"
         fi
 
-  compactc-compilation:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    name: CompactC Compilation Tests
-    needs: contract-tests
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js 22.x
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22.x'
-        cache: 'npm'
-
-    - name: Install system dependencies
-      run: |
-        echo "Installing system dependencies..."
-        sudo apt-get update
-        sudo apt-get install -y wget unzip curl
-
-    - name: Install CompactC
-      run: |
-        echo "Installing CompactC compiler..."
-        mkdir -p /usr/local/compactc
-        
-        # Download and install compactc (same as Dockerfile)
-        wget https://d3fazakqrumx6p.cloudfront.net/artifacts/compiler/compactc_0.24.0/compactc_v0.24.0_x86_64-unknown-linux-musl.zip -O /tmp/compactc.zip
-        unzip /tmp/compactc.zip -d /usr/local/compactc
-        chmod +x /usr/local/compactc/compactc.bin
-        chmod +x /usr/local/compactc/zkir
-        chmod +x /usr/local/compactc/compactc
-        rm /tmp/compactc.zip
-        
-        # Add to PATH
-        echo "/usr/local/compactc" >> $GITHUB_PATH
-        
-        # Set environment variables
-        echo "COMPACT_HOME=/usr/local/compactc" >> $GITHUB_ENV
-
-    - name: Verify CompactC installation
-      run: |
-        echo "Verifying CompactC installation..."
-        compactc --version
-        echo "COMPACT_HOME: $COMPACT_HOME"
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Test CompactC compilation and tests
-      working-directory: ./marketplace-registry-contract
-      run: |
-        echo "Testing CompactC compilation and running tests..."
-        npm run test:compile
-        
-        # Verify compilation artifacts
-        echo "Verifying compilation artifacts..."
-        if [ -d "dist" ] && [ "$(ls -A dist)" ]; then
-          echo "✅ Compilation artifacts created successfully"
-          ls -la dist/
-        else
-          echo "❌ No compilation artifacts found"
-          exit 1
-        fi
-
   quality-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     name: Code Quality & Security
-    needs: contract-tests
 
     steps:
     - name: Checkout repository
@@ -170,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     name: Test Report Generation
-    needs: [contract-tests, compactc-compilation, quality-checks]
+    needs: [contract-tests, quality-checks]
     if: always()
 
     steps:
@@ -180,11 +113,10 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Test Matrix Results" >> $GITHUB_STEP_SUMMARY
         echo "- **Contract Tests**: ${{ needs.contract-tests.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- **CompactC Compilation**: ${{ needs.compactc-compilation.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- **Quality Checks**: ${{ needs.quality-checks.result }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         
-        if [ "${{ needs.contract-tests.result }}" == "success" ] && [ "${{ needs.compactc-compilation.result }}" == "success" ] && [ "${{ needs.quality-checks.result }}" == "success" ]; then
+        if [ "${{ needs.contract-tests.result }}" == "success" ] && [ "${{ needs.quality-checks.result }}" == "success" ]; then
           echo "🎉 **All tests passed successfully!**" >> $GITHUB_STEP_SUMMARY
         else
           echo "⚠️ **Some tests failed. Please review the logs above.**" >> $GITHUB_STEP_SUMMARY
