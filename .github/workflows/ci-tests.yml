@@ -2,12 +2,9 @@ name: CI Tests
 
 on:
   push:
-    branches: [ feature/docker ]
+    branches: [ main, uat, develop, feature/docker ]
   pull_request:
-    branches: [ main, develop ]
-  # schedule:
-  #   # Run tests daily at 2 AM UTC
-  #   - cron: '0 2 * * *'
+    branches: [ main, uat, develop, feature/docker ]
 
 jobs:
   contract-tests:
